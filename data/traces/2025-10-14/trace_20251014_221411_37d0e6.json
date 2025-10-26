@@ -1,0 +1,391 @@
+{
+  "trace_id": "20251014_221411_37d0e6",
+  "timestamp": "2025-10-14T22:14:11.128277",
+  "model": "gpt2-medium",
+  "config": {
+    "captured_layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "max_seq_length": 512,
+    "attribution_method": "attention_pattern"
+  },
+  "input": {
+    "text": "The loan application shows: credit score 750, income $185k. yes or no",
+    "tokens": [
+      "<|endoftext|>",
+      "The",
+      " loan",
+      " application",
+      " shows",
+      ":",
+      " credit",
+      " score",
+      " 750",
+      ",",
+      " income",
+      " $",
+      "185",
+      "k",
+      ".",
+      " yes",
+      " or",
+      " no"
+    ],
+    "token_ids": [
+      50256,
+      464,
+      8063,
+      3586,
+      2523,
+      25,
+      3884,
+      4776,
+      19683,
+      11,
+      3739,
+      720,
+      21652,
+      74,
+      13,
+      3763,
+      393,
+      645
+    ]
+  },
+  "output": {
+    "text": ".",
+    "token": ".",
+    "token_id": 13,
+    "token_position": 17,
+    "logit_score": 14.370569229125977,
+    "probability": 0.3425772786140442
+  },
+  "attribution": {
+    "top_attention_heads": [
+      {
+        "layer": 1,
+        "head": 3,
+        "score": 0.055555567145347595,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.3956204652786255
+          },
+          {
+            "token": "The",
+            "weight": 0.09529489278793335
+          },
+          {
+            "token": ":",
+            "weight": 0.08378412574529648
+          },
+          {
+            "token": ",",
+            "weight": 0.06912830471992493
+          },
+          {
+            "token": ".",
+            "weight": 0.04634738713502884
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "head": 0,
+        "score": 0.055555567145347595,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.770937442779541
+          },
+          {
+            "token": " score",
+            "weight": 0.03900543227791786
+          },
+          {
+            "token": " credit",
+            "weight": 0.03210119530558586
+          },
+          {
+            "token": "The",
+            "weight": 0.029502762481570244
+          },
+          {
+            "token": ":",
+            "weight": 0.02280467189848423
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "head": 5,
+        "score": 0.055555567145347595,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.5192660689353943
+          },
+          {
+            "token": " or",
+            "weight": 0.21559837460517883
+          },
+          {
+            "token": " no",
+            "weight": 0.1852690726518631
+          },
+          {
+            "token": " score",
+            "weight": 0.014100146479904652
+          },
+          {
+            "token": " $",
+            "weight": 0.013825612142682076
+          }
+        ]
+      },
+      {
+        "layer": 15,
+        "head": 7,
+        "score": 0.055555567145347595,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.8198032379150391
+          },
+          {
+            "token": " loan",
+            "weight": 0.08066678047180176
+          },
+          {
+            "token": " application",
+            "weight": 0.01961432211101055
+          },
+          {
+            "token": " score",
+            "weight": 0.01720047928392887
+          },
+          {
+            "token": " credit",
+            "weight": 0.014042336493730545
+          }
+        ]
+      },
+      {
+        "layer": 15,
+        "head": 11,
+        "score": 0.055555567145347595,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.8624722957611084
+          },
+          {
+            "token": " loan",
+            "weight": 0.030357418581843376
+          },
+          {
+            "token": " yes",
+            "weight": 0.014049247838556767
+          },
+          {
+            "token": " application",
+            "weight": 0.011286593973636627
+          },
+          {
+            "token": ".",
+            "weight": 0.01078012678772211
+          }
+        ]
+      },
+      {
+        "layer": 21,
+        "head": 3,
+        "score": 0.055555567145347595,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.8134812712669373
+          },
+          {
+            "token": ".",
+            "weight": 0.06230512633919716
+          },
+          {
+            "token": " loan",
+            "weight": 0.03395158797502518
+          },
+          {
+            "token": " application",
+            "weight": 0.02984357438981533
+          },
+          {
+            "token": ":",
+            "weight": 0.015256671234965324
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "head": 0,
+        "score": 0.0555555634200573,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.21109449863433838
+          },
+          {
+            "token": " or",
+            "weight": 0.09612485766410828
+          },
+          {
+            "token": " $",
+            "weight": 0.07729365676641464
+          },
+          {
+            "token": ".",
+            "weight": 0.07355780899524689
+          },
+          {
+            "token": ",",
+            "weight": 0.07317809760570526
+          }
+        ]
+      },
+      {
+        "layer": 2,
+        "head": 2,
+        "score": 0.0555555634200573,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.14687545597553253
+          },
+          {
+            "token": " shows",
+            "weight": 0.09374365955591202
+          },
+          {
+            "token": " $",
+            "weight": 0.09319563210010529
+          },
+          {
+            "token": " income",
+            "weight": 0.07566747814416885
+          },
+          {
+            "token": " no",
+            "weight": 0.06849577277898788
+          }
+        ]
+      },
+      {
+        "layer": 2,
+        "head": 6,
+        "score": 0.0555555634200573,
+        "top_attended_tokens": [
+          {
+            "token": ".",
+            "weight": 0.3305167257785797
+          },
+          {
+            "token": ",",
+            "weight": 0.12867189943790436
+          },
+          {
+            "token": " or",
+            "weight": 0.10220690071582794
+          },
+          {
+            "token": " $",
+            "weight": 0.08041191846132278
+          },
+          {
+            "token": "185",
+            "weight": 0.07814144343137741
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "head": 4,
+        "score": 0.0555555634200573,
+        "top_attended_tokens": [
+          {
+            "token": " or",
+            "weight": 0.33426633477211
+          },
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.3211432695388794
+          },
+          {
+            "token": " no",
+            "weight": 0.12065297365188599
+          },
+          {
+            "token": " yes",
+            "weight": 0.08070263266563416
+          },
+          {
+            "token": ".",
+            "weight": 0.04284216836094856
+          }
+        ]
+      }
+    ],
+    "token_influence": {
+      "<|endoftext|>": 1.0,
+      "The": 0.04978650346743144,
+      " loan": 0.04836484566667467,
+      " application": 0.028924647462188383,
+      " shows": 0.042291790719845214,
+      ":": 0.0560298131910418,
+      " credit": 0.028537796971763,
+      " score": 0.03938764882341056,
+      " 750": 0.02949590665127301,
+      ",": 0.07442294213399095,
+      " income": 0.036172491889552634,
+      " $": 0.06503080223225531,
+      "185": 0.032387936292429594,
+      "k": 0.03562512048410899,
+      ".": 0.13420607781522992,
+      " yes": 0.059125294922356096,
+      " or": 0.1760756751493768,
+      " no": 0.11452978256312549
+    }
+  },
+  "performance": {
+    "inference_time_ms": 118.35789680480957,
+    "capture_overhead_ms": 2.3300647735595703,
+    "baseline_inference_ms": 116.02783203125,
+    "slowdown_factor": 1.020081947001578
+  },
+  "metadata": {
+    "git_commit": "unknown",
+    "glassbox_version": "0.1.0",
+    "device": "cpu"
+  }
+}

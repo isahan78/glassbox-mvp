@@ -1,0 +1,379 @@
+{
+  "trace_id": "20251014_214649_f4475c",
+  "timestamp": "2025-10-14T21:46:49.632589",
+  "model": "gpt2-small",
+  "config": {
+    "captured_layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "max_seq_length": 512,
+    "attribution_method": "attention_pattern"
+  },
+  "input": {
+    "text": "\"The loan application shows: credit score 750, income $85k. Decision:\"",
+    "tokens": [
+      "<|endoftext|>",
+      "\"",
+      "The",
+      " loan",
+      " application",
+      " shows",
+      ":",
+      " credit",
+      " score",
+      " 750",
+      ",",
+      " income",
+      " $",
+      "85",
+      "k",
+      ".",
+      " Decision",
+      ":\""
+    ],
+    "token_ids": [
+      50256,
+      1,
+      464,
+      8063,
+      3586,
+      2523,
+      25,
+      3884,
+      4776,
+      19683,
+      11,
+      3739,
+      720,
+      5332,
+      74,
+      13,
+      26423,
+      11097
+    ]
+  },
+  "output": {
+    "text": "\n",
+    "token": "\n",
+    "token_id": 198,
+    "token_position": 17,
+    "logit_score": 13.230934143066406,
+    "probability": 0.3013317286968231
+  },
+  "attribution": {
+    "top_attention_heads": [
+      {
+        "layer": 3,
+        "head": 0,
+        "score": 0.055555567145347595,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.5243253707885742
+          },
+          {
+            "token": "\"",
+            "weight": 0.2842155396938324
+          },
+          {
+            "token": ":\"",
+            "weight": 0.14863543212413788
+          },
+          {
+            "token": ":",
+            "weight": 0.030941423028707504
+          },
+          {
+            "token": "The",
+            "weight": 0.0035538782831281424
+          }
+        ]
+      },
+      {
+        "layer": 6,
+        "head": 2,
+        "score": 0.055555567145347595,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.8058680891990662
+          },
+          {
+            "token": ":\"",
+            "weight": 0.03319970890879631
+          },
+          {
+            "token": "\"",
+            "weight": 0.023298854008316994
+          },
+          {
+            "token": "The",
+            "weight": 0.01874786987900734
+          },
+          {
+            "token": ".",
+            "weight": 0.016644256189465523
+          }
+        ]
+      },
+      {
+        "layer": 8,
+        "head": 3,
+        "score": 0.055555567145347595,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.8800766468048096
+          },
+          {
+            "token": "\"",
+            "weight": 0.04127814993262291
+          },
+          {
+            "token": ":\"",
+            "weight": 0.03338940069079399
+          },
+          {
+            "token": ":",
+            "weight": 0.009144909679889679
+          },
+          {
+            "token": "The",
+            "weight": 0.00798079464584589
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "head": 6,
+        "score": 0.0555555634200573,
+        "top_attended_tokens": [
+          {
+            "token": " Decision",
+            "weight": 0.45947951078414917
+          },
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.13296149671077728
+          },
+          {
+            "token": "85",
+            "weight": 0.10304288566112518
+          },
+          {
+            "token": ":\"",
+            "weight": 0.08244089037179947
+          },
+          {
+            "token": " 750",
+            "weight": 0.06461042165756226
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "head": 10,
+        "score": 0.0555555634200573,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.415849894285202
+          },
+          {
+            "token": ":\"",
+            "weight": 0.14042790234088898
+          },
+          {
+            "token": "\"",
+            "weight": 0.05863046273589134
+          },
+          {
+            "token": " Decision",
+            "weight": 0.058079835027456284
+          },
+          {
+            "token": " $",
+            "weight": 0.04863109812140465
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "head": 0,
+        "score": 0.0555555634200573,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.8169190287590027
+          },
+          {
+            "token": " Decision",
+            "weight": 0.06964230537414551
+          },
+          {
+            "token": ":\"",
+            "weight": 0.04244563356041908
+          },
+          {
+            "token": " $",
+            "weight": 0.01831764727830887
+          },
+          {
+            "token": ".",
+            "weight": 0.017580974847078323
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "head": 2,
+        "score": 0.0555555634200573,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.45916467905044556
+          },
+          {
+            "token": ":\"",
+            "weight": 0.24777238070964813
+          },
+          {
+            "token": "\"",
+            "weight": 0.13211989402770996
+          },
+          {
+            "token": ":",
+            "weight": 0.028082242235541344
+          },
+          {
+            "token": "The",
+            "weight": 0.027707187458872795
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "head": 8,
+        "score": 0.0555555634200573,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.4161987006664276
+          },
+          {
+            "token": "\"",
+            "weight": 0.3235660195350647
+          },
+          {
+            "token": ":\"",
+            "weight": 0.09005256742238998
+          },
+          {
+            "token": " shows",
+            "weight": 0.055124279111623764
+          },
+          {
+            "token": "The",
+            "weight": 0.0395299531519413
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "head": 11,
+        "score": 0.0555555634200573,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.66596919298172
+          },
+          {
+            "token": ":\"",
+            "weight": 0.20016735792160034
+          },
+          {
+            "token": "\"",
+            "weight": 0.03224273398518562
+          },
+          {
+            "token": ":",
+            "weight": 0.0210947897285223
+          },
+          {
+            "token": " shows",
+            "weight": 0.016066517680883408
+          }
+        ]
+      },
+      {
+        "layer": 6,
+        "head": 5,
+        "score": 0.0555555634200573,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.6528180837631226
+          },
+          {
+            "token": ":\"",
+            "weight": 0.06604596972465515
+          },
+          {
+            "token": " Decision",
+            "weight": 0.04269245266914368
+          },
+          {
+            "token": " income",
+            "weight": 0.029231715947389603
+          },
+          {
+            "token": ".",
+            "weight": 0.027261340990662575
+          }
+        ]
+      }
+    ],
+    "token_influence": {
+      "<|endoftext|>": 1.0,
+      "\"": 0.15662083009037048,
+      "The": 0.0257949716872081,
+      " loan": 0.008693393517731959,
+      " application": 0.0077770058401134025,
+      " shows": 0.02493418995925589,
+      ":": 0.027987207425202592,
+      " credit": 0.013410658933070632,
+      " score": 0.01214945474970582,
+      " 750": 0.023094815116006598,
+      ",": 0.01507450815221793,
+      " income": 0.01793826193581427,
+      " $": 0.028002425848002995,
+      "85": 0.02809010000291407,
+      "k": 0.008821347587234045,
+      ".": 0.02931038838272947,
+      " Decision": 0.11739401686342582,
+      ":\"": 0.1879633987079406
+    }
+  },
+  "performance": {
+    "inference_time_ms": 44.573068618774414,
+    "capture_overhead_ms": -4.395008087158203,
+    "baseline_inference_ms": 48.96807670593262,
+    "slowdown_factor": 0.9102474840179758
+  },
+  "metadata": {
+    "git_commit": "unknown",
+    "glassbox_version": "0.1.0",
+    "device": "cpu"
+  }
+}

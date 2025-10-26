@@ -1,0 +1,364 @@
+{
+  "trace_id": "20251014_204529_77d013",
+  "timestamp": "2025-10-14T20:45:29.404147",
+  "model": "gpt2-small",
+  "config": {
+    "captured_layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "max_seq_length": 512,
+    "attribution_method": "attention_pattern"
+  },
+  "input": {
+    "text": "Should we approve this loan application? the credit score is 500",
+    "tokens": [
+      "<|endoftext|>",
+      "Should",
+      " we",
+      " approve",
+      " this",
+      " loan",
+      " application",
+      "?",
+      " the",
+      " credit",
+      " score",
+      " is",
+      " 500"
+    ],
+    "token_ids": [
+      50256,
+      19926,
+      356,
+      14762,
+      428,
+      8063,
+      3586,
+      30,
+      262,
+      3884,
+      4776,
+      318,
+      5323
+    ]
+  },
+  "output": {
+    "text": " points",
+    "token": " points",
+    "token_id": 2173,
+    "token_position": 12,
+    "logit_score": 13.492912292480469,
+    "probability": 0.13245664536952972
+  },
+  "attribution": {
+    "top_attention_heads": [
+      {
+        "layer": 5,
+        "head": 11,
+        "score": 0.07692309468984604,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.7294555306434631
+          },
+          {
+            "token": " 500",
+            "weight": 0.12427035719156265
+          },
+          {
+            "token": " score",
+            "weight": 0.04386230930685997
+          },
+          {
+            "token": " is",
+            "weight": 0.023472269997000694
+          },
+          {
+            "token": " credit",
+            "weight": 0.019025763496756554
+          }
+        ]
+      },
+      {
+        "layer": 11,
+        "head": 5,
+        "score": 0.07692309468984604,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.8789167404174805
+          },
+          {
+            "token": "Should",
+            "weight": 0.042666394263505936
+          },
+          {
+            "token": " the",
+            "weight": 0.01280544325709343
+          },
+          {
+            "token": " application",
+            "weight": 0.011834241449832916
+          },
+          {
+            "token": " 500",
+            "weight": 0.010549711063504219
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "head": 8,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.33557257056236267
+          },
+          {
+            "token": " the",
+            "weight": 0.1121392622590065
+          },
+          {
+            "token": "?",
+            "weight": 0.09534182399511337
+          },
+          {
+            "token": " is",
+            "weight": 0.09428919851779938
+          },
+          {
+            "token": " we",
+            "weight": 0.051708709448575974
+          }
+        ]
+      },
+      {
+        "layer": 2,
+        "head": 11,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.5717612504959106
+          },
+          {
+            "token": " is",
+            "weight": 0.06948979943990707
+          },
+          {
+            "token": " 500",
+            "weight": 0.06764483451843262
+          },
+          {
+            "token": "?",
+            "weight": 0.05805973708629608
+          },
+          {
+            "token": " credit",
+            "weight": 0.04600061476230621
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "head": 1,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "?",
+            "weight": 0.4504048228263855
+          },
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.21989865601062775
+          },
+          {
+            "token": " the",
+            "weight": 0.17115794122219086
+          },
+          {
+            "token": " is",
+            "weight": 0.0463651642203331
+          },
+          {
+            "token": " credit",
+            "weight": 0.027080923318862915
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "head": 1,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.38963428139686584
+          },
+          {
+            "token": " is",
+            "weight": 0.27043062448501587
+          },
+          {
+            "token": "?",
+            "weight": 0.15971486270427704
+          },
+          {
+            "token": " 500",
+            "weight": 0.08144179731607437
+          },
+          {
+            "token": " the",
+            "weight": 0.05583870783448219
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "head": 6,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.43322888016700745
+          },
+          {
+            "token": " is",
+            "weight": 0.09986571222543716
+          },
+          {
+            "token": "Should",
+            "weight": 0.07551939785480499
+          },
+          {
+            "token": " score",
+            "weight": 0.07050693035125732
+          },
+          {
+            "token": " 500",
+            "weight": 0.06248152628540993
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "head": 0,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.9920477271080017
+          },
+          {
+            "token": " is",
+            "weight": 0.0019339562859386206
+          },
+          {
+            "token": " 500",
+            "weight": 0.001010813983157277
+          },
+          {
+            "token": " score",
+            "weight": 0.0008797227055765688
+          },
+          {
+            "token": "?",
+            "weight": 0.0008292216225527227
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "head": 2,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.5742247700691223
+          },
+          {
+            "token": " is",
+            "weight": 0.12798386812210083
+          },
+          {
+            "token": " score",
+            "weight": 0.11720461398363113
+          },
+          {
+            "token": " credit",
+            "weight": 0.05747535824775696
+          },
+          {
+            "token": " the",
+            "weight": 0.0524291954934597
+          }
+        ]
+      },
+      {
+        "layer": 6,
+        "head": 1,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.9179311394691467
+          },
+          {
+            "token": " 500",
+            "weight": 0.046190809458494186
+          },
+          {
+            "token": " the",
+            "weight": 0.013385924510657787
+          },
+          {
+            "token": " score",
+            "weight": 0.01059661339968443
+          },
+          {
+            "token": " is",
+            "weight": 0.005596463568508625
+          }
+        ]
+      }
+    ],
+    "token_influence": {
+      "<|endoftext|>": 1.0,
+      "Should": 0.03274266701779505,
+      " we": 0.018697801013117295,
+      " approve": 0.01619813654188571,
+      " this": 0.017509785343865443,
+      " loan": 0.016847185362309877,
+      " application": 0.022585903056719484,
+      "?": 0.1363789941190664,
+      " the": 0.08825491691979921,
+      " credit": 0.04612323834990602,
+      " score": 0.061062671825822756,
+      " is": 0.12280997305493559,
+      " 500": 0.07568600297262533
+    }
+  },
+  "performance": {
+    "inference_time_ms": 41.82600975036621,
+    "capture_overhead_ms": -25.196075439453125,
+    "baseline_inference_ms": 67.02208518981934,
+    "slowdown_factor": 0.6240630925150563
+  },
+  "metadata": {
+    "git_commit": "unknown",
+    "glassbox_version": "0.1.0",
+    "device": "cpu"
+  }
+}

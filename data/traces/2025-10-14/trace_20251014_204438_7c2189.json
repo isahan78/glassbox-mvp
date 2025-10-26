@@ -1,0 +1,349 @@
+{
+  "trace_id": "20251014_204438_7c2189",
+  "timestamp": "2025-10-14T20:44:38.387393",
+  "model": "gpt2-small",
+  "config": {
+    "captured_layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "max_seq_length": 512,
+    "attribution_method": "attention_pattern"
+  },
+  "input": {
+    "text": "Should we approve this loan application?",
+    "tokens": [
+      "<|endoftext|>",
+      "Should",
+      " we",
+      " approve",
+      " this",
+      " loan",
+      " application",
+      "?"
+    ],
+    "token_ids": [
+      50256,
+      19926,
+      356,
+      14762,
+      428,
+      8063,
+      3586,
+      30
+    ]
+  },
+  "output": {
+    "text": "\n",
+    "token": "\n",
+    "token_id": 198,
+    "token_position": 7,
+    "logit_score": 17.651737213134766,
+    "probability": 0.625313401222229
+  },
+  "attribution": {
+    "top_attention_heads": [
+      {
+        "layer": 8,
+        "head": 7,
+        "score": 0.1250000298023224,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.969311535358429
+          },
+          {
+            "token": "?",
+            "weight": 0.008381174877285957
+          },
+          {
+            "token": " loan",
+            "weight": 0.008169632405042648
+          },
+          {
+            "token": " application",
+            "weight": 0.004735040944069624
+          },
+          {
+            "token": " approve",
+            "weight": 0.0033964677713811398
+          }
+        ]
+      },
+      {
+        "layer": 0,
+        "head": 0,
+        "score": 0.1250000149011612,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.4633622467517853
+          },
+          {
+            "token": "Should",
+            "weight": 0.2853619158267975
+          },
+          {
+            "token": " we",
+            "weight": 0.07476102560758591
+          },
+          {
+            "token": " approve",
+            "weight": 0.05462174490094185
+          },
+          {
+            "token": " this",
+            "weight": 0.03655019402503967
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "head": 10,
+        "score": 0.1250000149011612,
+        "top_attended_tokens": [
+          {
+            "token": "?",
+            "weight": 0.19702516496181488
+          },
+          {
+            "token": " application",
+            "weight": 0.1719336211681366
+          },
+          {
+            "token": " loan",
+            "weight": 0.1537800133228302
+          },
+          {
+            "token": " approve",
+            "weight": 0.15110790729522705
+          },
+          {
+            "token": " this",
+            "weight": 0.1196691170334816
+          }
+        ]
+      },
+      {
+        "layer": 2,
+        "head": 11,
+        "score": 0.1250000149011612,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.6595780253410339
+          },
+          {
+            "token": " application",
+            "weight": 0.08017764240503311
+          },
+          {
+            "token": "?",
+            "weight": 0.07108855247497559
+          },
+          {
+            "token": " loan",
+            "weight": 0.0523240864276886
+          },
+          {
+            "token": " approve",
+            "weight": 0.046770814806222916
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "head": 0,
+        "score": 0.1250000149011612,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.9151520133018494
+          },
+          {
+            "token": "?",
+            "weight": 0.05906130000948906
+          },
+          {
+            "token": "Should",
+            "weight": 0.019778549671173096
+          },
+          {
+            "token": " we",
+            "weight": 0.0035901544615626335
+          },
+          {
+            "token": " this",
+            "weight": 0.0019662415143102407
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "head": 4,
+        "score": 0.1250000149011612,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.42366451025009155
+          },
+          {
+            "token": "Should",
+            "weight": 0.29511675238609314
+          },
+          {
+            "token": " application",
+            "weight": 0.08492890745401382
+          },
+          {
+            "token": " approve",
+            "weight": 0.05163228511810303
+          },
+          {
+            "token": " we",
+            "weight": 0.044844333082437515
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "head": 7,
+        "score": 0.1250000149011612,
+        "top_attended_tokens": [
+          {
+            "token": "?",
+            "weight": 0.7192354202270508
+          },
+          {
+            "token": " application",
+            "weight": 0.134242445230484
+          },
+          {
+            "token": " approve",
+            "weight": 0.040476955473423004
+          },
+          {
+            "token": " loan",
+            "weight": 0.03451171889901161
+          },
+          {
+            "token": " this",
+            "weight": 0.032314565032720566
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "head": 9,
+        "score": 0.1250000149011612,
+        "top_attended_tokens": [
+          {
+            "token": " approve",
+            "weight": 0.3728334605693817
+          },
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.3588031232357025
+          },
+          {
+            "token": " we",
+            "weight": 0.10539824515581131
+          },
+          {
+            "token": "Should",
+            "weight": 0.0749126598238945
+          },
+          {
+            "token": " this",
+            "weight": 0.054033778607845306
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "head": 0,
+        "score": 0.1250000149011612,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.9637469053268433
+          },
+          {
+            "token": " loan",
+            "weight": 0.009747845120728016
+          },
+          {
+            "token": "?",
+            "weight": 0.009512783959507942
+          },
+          {
+            "token": " approve",
+            "weight": 0.006726041901856661
+          },
+          {
+            "token": " we",
+            "weight": 0.004297094885259867
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "head": 8,
+        "score": 0.1250000149011612,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.841448187828064
+          },
+          {
+            "token": "Should",
+            "weight": 0.09435641020536423
+          },
+          {
+            "token": " we",
+            "weight": 0.028205715119838715
+          },
+          {
+            "token": "?",
+            "weight": 0.012022311799228191
+          },
+          {
+            "token": " loan",
+            "weight": 0.008597590029239655
+          }
+        ]
+      }
+    ],
+    "token_influence": {
+      "<|endoftext|>": 1.0,
+      "Should": 0.15976505579562575,
+      " we": 0.0701997671405698,
+      " approve": 0.1304294245902888,
+      " this": 0.058695654869253794,
+      " loan": 0.06058730595872841,
+      " application": 0.09185283383880974,
+      "?": 0.2056509909037727
+    }
+  },
+  "performance": {
+    "inference_time_ms": 35.81595420837402,
+    "capture_overhead_ms": -8.831024169921875,
+    "baseline_inference_ms": 44.6469783782959,
+    "slowdown_factor": 0.8022033183276995
+  },
+  "metadata": {
+    "git_commit": "unknown",
+    "glassbox_version": "0.1.0",
+    "device": "cpu"
+  }
+}

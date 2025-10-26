@@ -1,0 +1,400 @@
+{
+  "trace_id": "20251014_220815_4f9eef",
+  "timestamp": "2025-10-14T22:08:15.114926",
+  "model": "gpt2-medium",
+  "config": {
+    "captured_layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "max_seq_length": 512,
+    "attribution_method": "attention_pattern"
+  },
+  "input": {
+    "text": "The loan application shows: credit score 750, income $185k. should we accept it?\n",
+    "tokens": [
+      "<|endoftext|>",
+      "The",
+      " loan",
+      " application",
+      " shows",
+      ":",
+      " credit",
+      " score",
+      " 750",
+      ",",
+      " income",
+      " $",
+      "185",
+      "k",
+      ".",
+      " should",
+      " we",
+      " accept",
+      " it",
+      "?",
+      "\n"
+    ],
+    "token_ids": [
+      50256,
+      464,
+      8063,
+      3586,
+      2523,
+      25,
+      3884,
+      4776,
+      19683,
+      11,
+      3739,
+      720,
+      21652,
+      74,
+      13,
+      815,
+      356,
+      2453,
+      340,
+      30,
+      198
+    ]
+  },
+  "output": {
+    "text": "\n",
+    "token": "\n",
+    "token_id": 198,
+    "token_position": 20,
+    "logit_score": 19.80868911743164,
+    "probability": 0.9674398303031921
+  },
+  "attribution": {
+    "top_attention_heads": [
+      {
+        "layer": 0,
+        "head": 14,
+        "score": 0.047619059681892395,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.6084967851638794
+          },
+          {
+            "token": " $",
+            "weight": 0.060132529586553574
+          },
+          {
+            "token": " application",
+            "weight": 0.032270729541778564
+          },
+          {
+            "token": ":",
+            "weight": 0.02847352623939514
+          },
+          {
+            "token": " score",
+            "weight": 0.02796338126063347
+          }
+        ]
+      },
+      {
+        "layer": 7,
+        "head": 7,
+        "score": 0.047619059681892395,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.4734167754650116
+          },
+          {
+            "token": "\n",
+            "weight": 0.11264501512050629
+          },
+          {
+            "token": "?",
+            "weight": 0.08049774914979935
+          },
+          {
+            "token": "The",
+            "weight": 0.07157909870147705
+          },
+          {
+            "token": " should",
+            "weight": 0.05228289216756821
+          }
+        ]
+      },
+      {
+        "layer": 10,
+        "head": 0,
+        "score": 0.047619059681892395,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.4301592707633972
+          },
+          {
+            "token": "\n",
+            "weight": 0.0594317689538002
+          },
+          {
+            "token": " 750",
+            "weight": 0.052058085799217224
+          },
+          {
+            "token": " shows",
+            "weight": 0.04819171503186226
+          },
+          {
+            "token": "?",
+            "weight": 0.04563036188483238
+          }
+        ]
+      },
+      {
+        "layer": 13,
+        "head": 2,
+        "score": 0.047619059681892395,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.8733181953430176
+          },
+          {
+            "token": "\n",
+            "weight": 0.06578759849071503
+          },
+          {
+            "token": "?",
+            "weight": 0.011491210199892521
+          },
+          {
+            "token": " score",
+            "weight": 0.004648714326322079
+          },
+          {
+            "token": " we",
+            "weight": 0.004496545530855656
+          }
+        ]
+      },
+      {
+        "layer": 22,
+        "head": 10,
+        "score": 0.047619059681892395,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.7740182876586914
+          },
+          {
+            "token": " credit",
+            "weight": 0.06789492070674896
+          },
+          {
+            "token": "The",
+            "weight": 0.019068637862801552
+          },
+          {
+            "token": " score",
+            "weight": 0.01879560761153698
+          },
+          {
+            "token": "?",
+            "weight": 0.017776012420654297
+          }
+        ]
+      },
+      {
+        "layer": 0,
+        "head": 0,
+        "score": 0.0476190522313118,
+        "top_attended_tokens": [
+          {
+            "token": " should",
+            "weight": 0.1488686054944992
+          },
+          {
+            "token": " it",
+            "weight": 0.11878753453493118
+          },
+          {
+            "token": " we",
+            "weight": 0.11687722057104111
+          },
+          {
+            "token": " income",
+            "weight": 0.08513478934764862
+          },
+          {
+            "token": " accept",
+            "weight": 0.06665033847093582
+          }
+        ]
+      },
+      {
+        "layer": 0,
+        "head": 6,
+        "score": 0.0476190522313118,
+        "top_attended_tokens": [
+          {
+            "token": "\n",
+            "weight": 0.21598385274410248
+          },
+          {
+            "token": "The",
+            "weight": 0.18373297154903412
+          },
+          {
+            "token": "185",
+            "weight": 0.16678576171398163
+          },
+          {
+            "token": "k",
+            "weight": 0.11038888245820999
+          },
+          {
+            "token": "?",
+            "weight": 0.08636815845966339
+          }
+        ]
+      },
+      {
+        "layer": 0,
+        "head": 7,
+        "score": 0.0476190522313118,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.18626071512699127
+          },
+          {
+            "token": "\n",
+            "weight": 0.08366169780492783
+          },
+          {
+            "token": " it",
+            "weight": 0.06461991369724274
+          },
+          {
+            "token": ".",
+            "weight": 0.0639766976237297
+          },
+          {
+            "token": "?",
+            "weight": 0.06308400630950928
+          }
+        ]
+      },
+      {
+        "layer": 0,
+        "head": 11,
+        "score": 0.0476190522313118,
+        "top_attended_tokens": [
+          {
+            "token": "\n",
+            "weight": 0.22528958320617676
+          },
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.16627652943134308
+          },
+          {
+            "token": ":",
+            "weight": 0.05716942623257637
+          },
+          {
+            "token": " should",
+            "weight": 0.04909573867917061
+          },
+          {
+            "token": " shows",
+            "weight": 0.047792207449674606
+          }
+        ]
+      },
+      {
+        "layer": 0,
+        "head": 15,
+        "score": 0.0476190522313118,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.31258031725883484
+          },
+          {
+            "token": "The",
+            "weight": 0.11413725465536118
+          },
+          {
+            "token": ":",
+            "weight": 0.06527673453092575
+          },
+          {
+            "token": " it",
+            "weight": 0.04925008490681648
+          },
+          {
+            "token": " $",
+            "weight": 0.044118210673332214
+          }
+        ]
+      }
+    ],
+    "token_influence": {
+      "<|endoftext|>": 1.0,
+      "The": 0.13793575892447085,
+      " loan": 0.057179704600823764,
+      " application": 0.05782401189372845,
+      " shows": 0.06760426555743511,
+      ":": 0.07566063774708827,
+      " credit": 0.07534750855738595,
+      " score": 0.05658473034795768,
+      " 750": 0.057650701023957335,
+      ",": 0.04490090750494785,
+      " income": 0.056546589486013134,
+      " $": 0.06783863051664149,
+      "185": 0.06993035344742103,
+      "k": 0.06180518349387626,
+      ".": 0.060004432991321494,
+      " should": 0.09881393226364024,
+      " we": 0.06553774014886765,
+      " accept": 0.05264576378425797,
+      " it": 0.06743464941663925,
+      "?": 0.10476760141686615,
+      "\n": 0.22289814291524374
+    }
+  },
+  "performance": {
+    "inference_time_ms": 119.98200416564941,
+    "capture_overhead_ms": 7.8830718994140625,
+    "baseline_inference_ms": 112.09893226623535,
+    "slowdown_factor": 1.0703224530336448
+  },
+  "metadata": {
+    "git_commit": "unknown",
+    "glassbox_version": "0.1.0",
+    "device": "cpu"
+  }
+}

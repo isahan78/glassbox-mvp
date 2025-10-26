@@ -1,0 +1,364 @@
+{
+  "trace_id": "20251014_204614_ffe9ec",
+  "timestamp": "2025-10-14T20:46:14.839479",
+  "model": "gpt2-small",
+  "config": {
+    "captured_layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "max_seq_length": 512,
+    "attribution_method": "attention_pattern"
+  },
+  "input": {
+    "text": "Should we approve this loan application? please answer yes or no",
+    "tokens": [
+      "<|endoftext|>",
+      "Should",
+      " we",
+      " approve",
+      " this",
+      " loan",
+      " application",
+      "?",
+      " please",
+      " answer",
+      " yes",
+      " or",
+      " no"
+    ],
+    "token_ids": [
+      50256,
+      19926,
+      356,
+      14762,
+      428,
+      8063,
+      3586,
+      30,
+      3387,
+      3280,
+      3763,
+      393,
+      645
+    ]
+  },
+  "output": {
+    "text": ".",
+    "token": ".",
+    "token_id": 13,
+    "token_position": 12,
+    "logit_score": 16.865568161010742,
+    "probability": 0.4931488633155823
+  },
+  "attribution": {
+    "top_attention_heads": [
+      {
+        "layer": 0,
+        "head": 10,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": " no",
+            "weight": 0.23182359337806702
+          },
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.15646331012248993
+          },
+          {
+            "token": " yes",
+            "weight": 0.09571844339370728
+          },
+          {
+            "token": " please",
+            "weight": 0.08109385520219803
+          },
+          {
+            "token": " this",
+            "weight": 0.07279059290885925
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "head": 0,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": " or",
+            "weight": 0.3251732289791107
+          },
+          {
+            "token": " yes",
+            "weight": 0.192498579621315
+          },
+          {
+            "token": " please",
+            "weight": 0.16728399693965912
+          },
+          {
+            "token": " answer",
+            "weight": 0.1035986915230751
+          },
+          {
+            "token": " no",
+            "weight": 0.07283779233694077
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "head": 10,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": " answer",
+            "weight": 0.1213110014796257
+          },
+          {
+            "token": " yes",
+            "weight": 0.11266011744737625
+          },
+          {
+            "token": "?",
+            "weight": 0.10642840713262558
+          },
+          {
+            "token": " no",
+            "weight": 0.1058029904961586
+          },
+          {
+            "token": " application",
+            "weight": 0.08968179672956467
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "head": 5,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.9245651364326477
+          },
+          {
+            "token": " answer",
+            "weight": 0.014704449102282524
+          },
+          {
+            "token": " approve",
+            "weight": 0.010500210337340832
+          },
+          {
+            "token": " loan",
+            "weight": 0.009370394982397556
+          },
+          {
+            "token": "Should",
+            "weight": 0.008439827710390091
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "head": 1,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.43254971504211426
+          },
+          {
+            "token": " or",
+            "weight": 0.3810466527938843
+          },
+          {
+            "token": " no",
+            "weight": 0.06495517492294312
+          },
+          {
+            "token": " answer",
+            "weight": 0.04577966779470444
+          },
+          {
+            "token": "?",
+            "weight": 0.03272129222750664
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "head": 3,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": " or",
+            "weight": 0.219014972448349
+          },
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.20837248861789703
+          },
+          {
+            "token": " yes",
+            "weight": 0.19788557291030884
+          },
+          {
+            "token": " answer",
+            "weight": 0.17401641607284546
+          },
+          {
+            "token": " no",
+            "weight": 0.13089503347873688
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "head": 5,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.6976566910743713
+          },
+          {
+            "token": " or",
+            "weight": 0.16506360471248627
+          },
+          {
+            "token": " no",
+            "weight": 0.10079189389944077
+          },
+          {
+            "token": " this",
+            "weight": 0.01059767697006464
+          },
+          {
+            "token": " loan",
+            "weight": 0.00795632041990757
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "head": 8,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": " or",
+            "weight": 0.650122880935669
+          },
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.27014175057411194
+          },
+          {
+            "token": " no",
+            "weight": 0.04286962002515793
+          },
+          {
+            "token": " yes",
+            "weight": 0.01032465323805809
+          },
+          {
+            "token": " answer",
+            "weight": 0.008789578452706337
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "head": 10,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": " please",
+            "weight": 0.21628472208976746
+          },
+          {
+            "token": " approve",
+            "weight": 0.17650844156742096
+          },
+          {
+            "token": "?",
+            "weight": 0.16537843644618988
+          },
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.1496969610452652
+          },
+          {
+            "token": " yes",
+            "weight": 0.08758756518363953
+          }
+        ]
+      },
+      {
+        "layer": 6,
+        "head": 3,
+        "score": 0.07692308723926544,
+        "top_attended_tokens": [
+          {
+            "token": "<|endoftext|>",
+            "weight": 0.7207220792770386
+          },
+          {
+            "token": " please",
+            "weight": 0.08226219564676285
+          },
+          {
+            "token": " or",
+            "weight": 0.06944001466035843
+          },
+          {
+            "token": "?",
+            "weight": 0.03385287523269653
+          },
+          {
+            "token": " we",
+            "weight": 0.021010203287005424
+          }
+        ]
+      }
+    ],
+    "token_influence": {
+      "<|endoftext|>": 1.0,
+      "Should": 0.04803334343388537,
+      " we": 0.04213123847730852,
+      " approve": 0.09588339720415345,
+      " this": 0.0636898588933812,
+      " loan": 0.05511593371268571,
+      " application": 0.05643873044272156,
+      "?": 0.12097276088611483,
+      " please": 0.18966459281129575,
+      " answer": 0.14667721676964543,
+      " yes": 0.20612005907002792,
+      " or": 0.5484578321018707,
+      " no": 0.2146537087671074
+    }
+  },
+  "performance": {
+    "inference_time_ms": 41.20898246765137,
+    "capture_overhead_ms": -10.606765747070312,
+    "baseline_inference_ms": 51.81574821472168,
+    "slowdown_factor": 0.7952984157805375
+  },
+  "metadata": {
+    "git_commit": "unknown",
+    "glassbox_version": "0.1.0",
+    "device": "cpu"
+  }
+}
