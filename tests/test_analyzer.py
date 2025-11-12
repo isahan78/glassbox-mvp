@@ -6,8 +6,8 @@ Run with: pytest tests/test_analyzer.py -v
 
 import pytest
 import torch
-from glassbox_tracer import ActivationTracer, TracerConfig
-from glassbox_analyzer import AttentionAnalyzer, HeadScore
+from glassbox.tracer import ActivationTracer, TracerConfig
+from glassbox.analyzer import AttentionAnalyzer, HeadScore
 
 
 @pytest.fixture

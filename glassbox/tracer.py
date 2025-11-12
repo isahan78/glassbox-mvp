@@ -12,6 +12,11 @@ from transformer_lens import HookedTransformer
 import time
 from datetime import datetime
 
+# Constants
+BYTES_PER_FLOAT32 = 4
+BYTES_TO_GB = 1024**3
+DEFAULT_MAX_SEQ_LENGTH = 512
+
 
 @dataclass
 class TracerConfig:
@@ -25,7 +30,7 @@ class TracerConfig:
     
     # Memory optimization
     store_activations: bool = True
-    max_seq_length: int = 512
+    max_seq_length: int = DEFAULT_MAX_SEQ_LENGTH
     
     # Output control
     include_gradients: bool = False
@@ -131,7 +136,7 @@ class ActivationTracer:
         
         # Memory estimate
         param_count = sum(p.numel() for p in self.model.parameters())
-        memory_gb = (param_count * 4) / (1024**3)  # 4 bytes per float32
+        memory_gb = (param_count * BYTES_PER_FLOAT32) / BYTES_TO_GB
         print(f"   Memory: ~{memory_gb:.1f}GB required")
     
     def trace(

@@ -10,12 +10,17 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from pathlib import Path
 import sys
+import os
+import re
+from contextlib import asynccontextmanager
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from glassbox_tracer import ActivationTracer, TracerConfig
-from glassbox_serializer import TraceSerializer
+from glassbox.tracer import ActivationTracer, TracerConfig
+from glassbox.serializer import TraceSerializer
+from glassbox.decision_analyzer import DecisionAnalyzer
+from glassbox.analyzer import AttentionAnalyzer
 
 
 # Pydantic models for API
@@ -46,35 +51,48 @@ class TraceListItem(BaseModel):
     output: str
 
 
+# Global components (initialized on startup)
+tracer: Optional[ActivationTracer] = None
+serializer: Optional[TraceSerializer] = None
+decision_analyzer: Optional[DecisionAnalyzer] = None
+attention_analyzer: Optional[AttentionAnalyzer] = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize components on startup and cleanup on shutdown."""
+    global tracer, serializer, decision_analyzer, attention_analyzer
+    # Startup
+    print("Initializing GlassBox components...")
+    model_name = os.getenv("GLASSBOX_MODEL", "gpt2-small")
+    print(f"Loading model: {model_name}")
+    tracer = ActivationTracer(model_name=model_name)
+    serializer = TraceSerializer(output_dir="data/traces")
+    decision_analyzer = DecisionAnalyzer(tracer)
+    attention_analyzer = AttentionAnalyzer(tracer)
+    print("GlassBox API ready!")
+    yield
+    # Shutdown
+    print("Shutting down GlassBox API...")
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="GlassBox Trace API",
     description="API for generating and retrieving LLM interpretability traces",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
 
-# Add CORS middleware
+# Configure CORS - use environment variable for allowed origins
+allowed_origins = os.getenv("GLASSBOX_CORS_ORIGINS", "http://localhost:3000,http://localhost:8501").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
-
-# Global components (initialized on startup)
-tracer: Optional[ActivationTracer] = None
-serializer: Optional[TraceSerializer] = None
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize components on startup."""
-    global tracer, serializer
-    print("Initializing GlassBox components...")
-    tracer = ActivationTracer(model_name="gpt2-small")
-    serializer = TraceSerializer(output_dir="data/traces")
-    print("GlassBox API ready!")
 
 
 @app.get("/")
@@ -131,17 +149,33 @@ async def list_traces(
         )
 
 
+def validate_trace_id(trace_id: str) -> str:
+    """
+    Validate trace_id format to prevent path traversal attacks.
+
+    Expected format: YYYYMMDD_HHMMSS_xxxxxx (e.g., 20251025_143022_abc123)
+    """
+    if not re.match(r'^[0-9]{8}_[0-9]{6}_[a-f0-9]{6}$', trace_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid trace_id format. Expected: YYYYMMDD_HHMMSS_xxxxxx"
+        )
+    return trace_id
+
+
 @app.get("/trace/{trace_id}")
 async def get_trace(trace_id: str):
     """
     Retrieve full trace JSON by ID.
-    
+
     Args:
-        trace_id: Trace identifier (timestamp_hash format)
-    
+        trace_id: Trace identifier (timestamp_hash format: YYYYMMDD_HHMMSS_xxxxxx)
+
     Returns:
         Complete trace object with all analysis data
     """
+    trace_id = validate_trace_id(trace_id)
+
     try:
         trace = serializer.load(trace_id)
         return trace
@@ -236,39 +270,223 @@ async def get_stats():
 async def delete_trace(trace_id: str):
     """
     Delete a trace by ID.
-    
+
     Args:
-        trace_id: Trace identifier
-    
+        trace_id: Trace identifier (timestamp_hash format: YYYYMMDD_HHMMSS_xxxxxx)
+
     Returns:
         Confirmation message
     """
+    trace_id = validate_trace_id(trace_id)
+
     try:
-        # Find and delete file
-        output_dir = Path("data/traces")
-        
-        for date_dir in output_dir.iterdir():
-            if not date_dir.is_dir():
-                continue
-            
-            filepath = date_dir / f"trace_{trace_id}.json"
-            if filepath.exists():
-                filepath.unlink()
-                return {
-                    "message": f"Trace {trace_id} deleted successfully"
-                }
-        
-        raise HTTPException(
-            status_code=404,
-            detail=f"Trace '{trace_id}' not found"
-        )
-        
+        # Use serializer's delete method instead of duplicating logic
+        success = serializer.delete(trace_id)
+
+        if success:
+            return {
+                "message": f"Trace {trace_id} deleted successfully"
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Trace '{trace_id}' not found"
+            )
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Error deleting trace: {str(e)}"
+        )
+
+
+class AnalyzeChoicesRequest(BaseModel):
+    """Request to analyze decision choices."""
+    prompt: str = Field(..., min_length=1, max_length=2000)
+    choices: List[str] = Field(..., min_items=2, max_items=10)
+
+
+@app.post("/analyze-choices")
+async def analyze_choices(request: AnalyzeChoicesRequest):
+    """
+    Analyze probabilities for specific answer choices.
+
+    Args:
+        request: AnalyzeChoicesRequest with prompt and list of choices
+
+    Returns:
+        Dictionary with result and probabilities for each choice
+
+    Example:
+        POST /analyze-choices
+        {
+            "prompt": "Q: Approve loan? A:",
+            "choices": ["yes", "no"]
+        }
+
+        Response:
+        {
+            "result": {...},
+            "probabilities": {"yes": 0.65, "no": 0.35}
+        }
+    """
+    try:
+        result, probs = decision_analyzer.analyze_choices(
+            request.prompt,
+            request.choices
+        )
+
+        # Save trace
+        trace_id = serializer.save(result).stem.replace("trace_", "")
+
+        return {
+            "result": {
+                "trace_id": trace_id,
+                "output_text": result.output_text,
+                "output_token": result.output_token,
+                "output_logprob": result.output_logprob,
+                "prompt": result.prompt,
+                "model_name": result.model_name,
+                "num_layers": result.num_layers,
+                "num_heads": result.num_heads,
+                "timestamp": result.timestamp
+            },
+            "probabilities": probs
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error analyzing choices: {str(e)}"
+        )
+
+
+class TopTokensRequest(BaseModel):
+    """Request to get top-k token predictions."""
+    prompt: str = Field(..., min_length=1, max_length=2000)
+    top_k: int = Field(default=10, ge=1, le=50)
+
+
+@app.post("/top-tokens")
+async def get_top_tokens_endpoint(request: TopTokensRequest):
+    """
+    Get top-k most likely next tokens for a prompt.
+
+    Args:
+        request: TopTokensRequest with prompt and top_k
+
+    Returns:
+        List of (token, probability) tuples
+
+    Example:
+        POST /top-tokens
+        {
+            "prompt": "The capital of France is",
+            "top_k": 5
+        }
+
+        Response:
+        {
+            "top_tokens": [
+                [" Paris", 0.92],
+                [" paris", 0.03],
+                ...
+            ]
+        }
+    """
+    try:
+        # First trace the prompt
+        result = tracer.trace(request.prompt)
+
+        # Get top tokens
+        top_tokens = decision_analyzer.get_top_tokens(result, top_k=request.top_k)
+
+        # Save trace
+        trace_id = serializer.save(result).stem.replace("trace_", "")
+
+        return {
+            "trace_id": trace_id,
+            "top_tokens": top_tokens
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting top tokens: {str(e)}"
+        )
+
+
+class AnalyzeAttentionRequest(BaseModel):
+    """Request to analyze attention patterns for a trace."""
+    trace_id: str
+    top_n: int = Field(default=10, ge=1, le=50)
+
+
+@app.post("/analyze")
+async def analyze_attention_endpoint(request: AnalyzeAttentionRequest):
+    """
+    Analyze attention patterns for a previously generated trace.
+
+    Args:
+        request: AnalyzeAttentionRequest with trace_id and top_n
+
+    Returns:
+        Attention analysis results with top attention heads
+
+    Example:
+        POST /analyze
+        {
+            "trace_id": "20251014_173045_abc123",
+            "top_n": 10
+        }
+    """
+    trace_id = validate_trace_id(request.trace_id)
+
+    try:
+        # Load trace
+        trace_data = serializer.load(trace_id)
+
+        # Reconstruct TraceResult (simplified - just need the key fields)
+        from glassbox.tracer import TraceResult
+        result = TraceResult(
+            output_text=trace_data['output_text'],
+            output_token=trace_data['output_token'],
+            output_logprob=trace_data['output_logprob'],
+            activations=trace_data['activations'],
+            attention_patterns=trace_data['attention_patterns'],
+            input_ids=trace_data['input_ids'],
+            input_tokens=trace_data['input_tokens']
+        )
+
+        # Analyze attention
+        head_scores = attention_analyzer.rank_attention_heads(result)
+        top_heads = head_scores[:request.top_n]
+
+        # Format response
+        return {
+            "trace_id": trace_id,
+            "top_heads": [
+                {
+                    "layer": head.layer,
+                    "head": head.head,
+                    "score": head.score,
+                    "pattern": head.pattern,
+                    "description": head.description
+                }
+                for head in top_heads
+            ],
+            "num_heads_analyzed": len(head_scores),
+            "analysis_method": "attention_to_output"
+        }
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Trace '{trace_id}' not found"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error analyzing attention: {str(e)}"
         )
 
 
@@ -319,6 +537,13 @@ async def get_examples():
     }
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for console script."""
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("GLASSBOX_PORT", "8000"))
+    host = os.getenv("GLASSBOX_HOST", "0.0.0.0")
+    uvicorn.run(app, host=host, port=port)
+
+
+if __name__ == "__main__":
+    main()

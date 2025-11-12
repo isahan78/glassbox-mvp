@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # GlassBox API Server
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: glassbox-api
+    ports:
+      - "8000:8000"
+    environment:
+      - GLASSBOX_MODEL=${GLASSBOX_MODEL:-gpt2-medium}
+      - GLASSBOX_HOST=0.0.0.0
+      - GLASSBOX_PORT=8000
+      - GLASSBOX_CORS_ORIGINS=${GLASSBOX_CORS_ORIGINS:-http://localhost:8501,http://localhost:3000}
+      - HF_TOKEN=${HF_TOKEN}
+      - HF_HOME=/app/data/models
+      - TRANSFORMERS_CACHE=/app/data/models/transformers
+    volumes:
+      - ./data/traces:/app/data/traces
+      - ./data/models:/app/data/models
+      - ./glassbox:/app/glassbox  # Mount source for development
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # GlassBox Dashboard (Streamlit)
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: glassbox-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - GLASSBOX_MODEL=${GLASSBOX_MODEL:-gpt2-medium}
+      - HF_TOKEN=${HF_TOKEN}
+      - HF_HOME=/app/data/models
+      - TRANSFORMERS_CACHE=/app/data/models/transformers
+    volumes:
+      - ./data/traces:/app/data/traces
+      - ./data/models:/app/data/models
+      - ./dashboard:/app/dashboard  # Mount source for development
+      - ./glassbox:/app/glassbox
+    command: streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    depends_on:
+      - api
+
+volumes:
+  models:
+    driver: local
+  traces:
+    driver: local
+
+networks:
+  default:
+    name: glassbox-network

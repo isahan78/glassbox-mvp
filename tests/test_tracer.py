@@ -6,7 +6,7 @@ Run with: pytest tests/test_tracer.py -v
 
 import pytest
 import torch
-from glassbox_tracer import ActivationTracer, TracerConfig, TraceResult
+from glassbox.tracer import ActivationTracer, TracerConfig, TraceResult
 
 
 @pytest.fixture

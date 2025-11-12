@@ -10,6 +10,10 @@ from typing import Dict, List, Tuple
 import torch
 import numpy as np
 
+# Constants
+DEFAULT_TOP_K_TOKENS = 5
+DEFAULT_TOP_N_HEADS = 10
+
 
 @dataclass
 class HeadScore:
@@ -71,7 +75,7 @@ class AttentionAnalyzer:
             score = target_attention.mean().item()
             
             # Get top attended tokens
-            top_k = min(5, len(target_attention))
+            top_k = min(DEFAULT_TOP_K_TOKENS, len(target_attention))
             top_values, top_indices = torch.topk(target_attention, top_k)
             
             top_attended = [
@@ -95,7 +99,7 @@ class AttentionAnalyzer:
         attention_cache: Dict[str, torch.Tensor],
         tokens: List[str],
         target_token_idx: int = -1,
-        top_n_heads: int = 10
+        top_n_heads: int = DEFAULT_TOP_N_HEADS
     ) -> Dict[str, float]:
         """
         Compute aggregate influence score per input token.

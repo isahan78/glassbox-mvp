@@ -17,7 +17,7 @@ setup(
     description="Interpretable-by-design AI runtime for language models",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourorg/glassbox",
+    url="https://github.com/glassbox-ai/glassbox-mvp",
     packages=find_packages(exclude=["tests", "notebooks", "docs"]),
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -60,7 +60,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "glassbox-dashboard=dashboard.app:main",
+            "glassbox-dashboard=dashboard.app:cli_main",
             "glassbox-api=api.server:main",
         ],
     },
@@ -78,8 +78,8 @@ setup(
         "ai-safety",
     ],
     project_urls={
-        "Bug Reports": "https://github.com/yourorg/glassbox/issues",
-        "Documentation": "https://glassbox.readthedocs.io",
-        "Source": "https://github.com/yourorg/glassbox",
+        "Bug Reports": "https://github.com/glassbox-ai/glassbox-mvp/issues",
+        "Documentation": "https://github.com/glassbox-ai/glassbox-mvp#readme",
+        "Source": "https://github.com/glassbox-ai/glassbox-mvp",
     },
 )

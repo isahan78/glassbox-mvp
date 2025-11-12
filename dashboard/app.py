@@ -18,6 +18,25 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from glassbox.tracer import ActivationTracer, TracerConfig
 from glassbox.serializer import TraceSerializer
+from glassbox.analyzer import AttentionAnalyzer
+from glassbox.decision_analyzer import DecisionAnalyzer
+
+
+# Helper function to display special characters
+def format_output_token(token: str) -> str:
+    """Format output token to show special characters clearly."""
+    if not token:
+        return "[EMPTY]"
+    elif token == "\n":
+        return "\\n (newline)"
+    elif token == "\t":
+        return "\\t (tab)"
+    elif token == " ":
+        return "[SPACE]"
+    elif token.strip() == "":
+        return f"[WHITESPACE: {repr(token)}]"
+    else:
+        return token
 
 
 # Page config
@@ -31,12 +50,20 @@ st.set_page_config(
 @st.cache_resource
 def get_tracer():
     """Initialize tracer (cached)."""
-    return ActivationTracer(model_name="gpt2-medium")
+    import os
+    model_name = os.getenv("GLASSBOX_MODEL", "gpt2-medium")
+    return ActivationTracer(model_name=model_name)
 
 @st.cache_resource
 def get_serializer():
     """Initialize serializer (cached)."""
     return TraceSerializer(output_dir="data/traces")
+
+@st.cache_resource
+def get_analyzer():
+    """Initialize decision analyzer (cached)."""
+    tracer = get_tracer()
+    return DecisionAnalyzer(tracer)
 
 
 def main():
@@ -61,15 +88,37 @@ def main():
 def show_new_trace_page():
     """Page for creating new traces."""
     st.header("Create New Trace")
-    
+
     # Input form
     with st.form("trace_form"):
         prompt = st.text_area(
             "Enter prompt to trace:",
-            value="Should we approve this loan application?",
+            value="Q: Should we approve this loan application? A:",
             height=100
         )
-        
+
+        # Generation mode
+        st.subheader("Generation Mode")
+        generation_mode = st.radio(
+            "Select mode:",
+            ["Single Token (Fast)", "Multi-Token (Slower, detailed)"],
+            help="Single token predicts one token. Multi-token generates a completion with full tracing for each token."
+        )
+
+        multi_token = generation_mode == "Multi-Token (Slower, detailed)"
+
+        if multi_token:
+            max_tokens = st.slider(
+                "Tokens to generate",
+                min_value=1,
+                max_value=20,
+                value=5,
+                help="⚠️ Each token is traced individually. 10 tokens = ~10x slower than single token."
+            )
+            st.warning(f"⚠️ Generating {max_tokens} tokens will take approximately {max_tokens * 2}-{max_tokens * 5} seconds with full tracing.")
+        else:
+            st.info("ℹ️ **Single token mode:** Predicts the next token with detailed analysis of how the model arrives at that prediction.")
+
         col1, col2 = st.columns(2)
         with col1:
             capture_all = st.checkbox("Capture all layers", value=True)
@@ -78,7 +127,7 @@ def show_new_trace_page():
                     "Layer range",
                     0, 11, (5, 9)
                 )
-        
+
         with col2:
             max_length = st.number_input(
                 "Max sequence length",
@@ -86,11 +135,11 @@ def show_new_trace_page():
                 max_value=512,
                 value=128
             )
-        
+
         submit = st.form_submit_button("🚀 Generate Trace", type="primary")
     
     if submit and prompt:
-        with st.spinner("Running inference and capturing activations..."):
+        try:
             # Configure
             if capture_all:
                 config = TracerConfig(max_seq_length=max_length)
@@ -99,19 +148,174 @@ def show_new_trace_page():
                     capture_layers=list(range(layer_range[0], layer_range[1] + 1)),
                     max_seq_length=max_length
                 )
-            
-            # Trace
-            tracer = get_tracer()
-            result = tracer.trace(prompt, config)
-            
-            # Save
-            serializer = get_serializer()
-            filepath = serializer.save(result)
-            
-            st.success(f"✅ Trace generated successfully!")
-            
-            # Display results
-            display_trace_results(result, serializer.serialize(result))
+
+            if multi_token:
+                # Multi-token generation
+                with st.spinner(f"Generating {max_tokens} tokens with full tracing... This may take a while..."):
+                    analyzer = get_analyzer()
+                    full_text, traces = analyzer.generate_completion(
+                        prompt,
+                        max_tokens=max_tokens
+                    )
+
+                    st.success(f"✅ Generated {len(traces)} tokens successfully!")
+
+                    # Display multi-token results
+                    display_multi_token_results(prompt, full_text, traces)
+
+            else:
+                # Single token trace
+                with st.spinner("Running inference and capturing activations..."):
+                    tracer = get_tracer()
+                    result = tracer.trace(prompt, config)
+
+                    # Save
+                    serializer = get_serializer()
+                    filepath = serializer.save(result)
+
+                    st.success(f"✅ Trace generated successfully!")
+
+                    # Display results
+                    display_trace_results(result, serializer.serialize(result))
+
+        except Exception as e:
+            st.error(f"❌ Error generating trace: {str(e)}")
+            with st.expander("Show detailed error"):
+                st.exception(e)
+
+
+def display_multi_token_results(prompt, full_text, traces):
+    """Display results for multi-token generation."""
+
+    # Calculate overall metrics
+    total_time = sum(t.metadata.inference_time_ms for t in traces)
+    avg_time = total_time / len(traces) if traces else 0
+
+    # Calculate average confidence
+    import torch
+    confidences = []
+    for trace in traces:
+        output_logit = trace.logits[0, -1]
+        output_probs = torch.softmax(output_logit, dim=0)
+        output_token_id = output_logit.argmax().item()
+        token_prob = output_probs[output_token_id].item()
+        confidences.append(token_prob)
+
+    avg_confidence = sum(confidences) / len(confidences) if confidences else 0
+    generated_text = full_text[len(prompt):]
+
+    # Decision Summary
+    st.subheader("🎯 Generation Summary")
+
+    col1, col2 = st.columns([2, 3])
+    with col1:
+        st.metric("Generated Text", f"{len(traces)} tokens")
+        st.text_area("Output", generated_text, height=100, disabled=True)
+
+    with col2:
+        if avg_confidence > 0.7:
+            st.success(f"🟢 Average Confidence: {avg_confidence:.1%}")
+            st.caption("✓ Model was confident in its generation")
+        elif avg_confidence > 0.4:
+            st.warning(f"🟡 Average Confidence: {avg_confidence:.1%}")
+            st.caption("⚠ Generation has moderate uncertainty")
+        else:
+            st.error(f"🔴 Average Confidence: {avg_confidence:.1%}")
+            st.caption("⚠️ Model was uncertain about this generation")
+
+        st.metric("Total Time", f"{total_time/1000:.1f}s")
+        st.metric("Speed", f"{avg_time:.0f}ms/token")
+
+    # Token-by-token confidence visualization
+    st.subheader("📊 Confidence Per Token")
+
+    # Create a bar chart of confidence
+    import pandas as pd
+    token_data = []
+    for i, (trace, conf) in enumerate(zip(traces, confidences), 1):
+        token_data.append({
+            'Position': i,
+            'Token': format_output_token(trace.output_text),
+            'Confidence': conf * 100
+        })
+
+    df = pd.DataFrame(token_data)
+    import plotly.express as px
+    fig = px.bar(
+        df,
+        x='Position',
+        y='Confidence',
+        hover_data=['Token'],
+        title='Confidence Level for Each Generated Token',
+        color='Confidence',
+        color_continuous_scale='RdYlGn',
+        range_color=[0, 100]
+    )
+    fig.update_layout(yaxis_title="Confidence (%)", xaxis_title="Token Position")
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Show full completion
+    st.subheader("📝 Complete Text")
+    st.text_area("Full Output", full_text, height=150, disabled=True)
+
+    # Token-by-token breakdown (collapsed by default)
+    with st.expander("🔍 Detailed Token-by-Token Analysis", expanded=False):
+        st.caption("Click on each token to see detailed attention analysis")
+
+        for i, (trace, conf) in enumerate(zip(traces, confidences), 1):
+            formatted_token = format_output_token(trace.output_text)
+
+            with st.expander(f"Token {i}: '{formatted_token}' ({conf:.1%} confidence)"):
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    st.metric("Token", formatted_token)
+                    if formatted_token != trace.output_text:
+                        st.caption(f"Raw: {repr(trace.output_text)}")
+
+                with col2:
+                    if conf > 0.7:
+                        st.success(f"🟢 {conf:.1%}")
+                    elif conf > 0.4:
+                        st.warning(f"🟡 {conf:.1%}")
+                    else:
+                        st.error(f"🔴 {conf:.1%}")
+
+                with col3:
+                    st.metric("Time", f"{trace.metadata.inference_time_ms:.0f}ms")
+
+                # Show attention analysis for this token
+                serializer = get_serializer()
+                trace_dict = serializer.serialize(trace)
+
+                # Token influence for this step
+                token_influence = trace_dict['attribution']['token_influence']
+                if token_influence:
+                    st.markdown("**Key influences for this token:**")
+                    top_3 = sorted(token_influence.items(), key=lambda x: x[1], reverse=True)[:3]
+                    for token, influence in top_3:
+                        st.markdown(f"• `{token}` - {influence:.1%}")
+
+                # Technical details
+                with st.expander("Advanced: Attention Heads"):
+                    st.markdown("**Top 5 Attention Heads:**")
+                    for j, head in enumerate(trace_dict['attribution']['top_attention_heads'][:5], 1):
+                        st.markdown(f"{j}. Layer {head['layer']}, Head {head['head']} - Score: {head['score']:.3f}")
+
+    # Save option
+    st.divider()
+    if st.button("💾 Save All Traces"):
+        serializer = get_serializer()
+        saved_ids = []
+        for i, trace in enumerate(traces):
+            filepath = serializer.save(trace)
+            trace_id = filepath.stem.replace("trace_", "")
+            saved_ids.append(trace_id)
+
+        st.success(f"✅ Saved {len(saved_ids)} traces to disk")
+        with st.expander("View Trace IDs"):
+            for trace_id in saved_ids:
+                st.code(trace_id)
 
 
 def show_trace_browser_page():
@@ -163,41 +367,115 @@ def show_trace_browser_page():
                 )
             
             with col2:
-                st.metric("Output", trace_meta['output'])
+                formatted_output = format_output_token(trace_meta['output'])
+                st.metric("Output", formatted_output)
                 st.caption(f"Time: {trace_meta['timestamp']}")
             
             if st.button("View Full Analysis", key=f"btn_{trace_meta['trace_id']}"):
-                # Load full trace
-                full_trace = serializer.load(trace_meta['trace_id'])
-                display_full_trace(full_trace)
+                try:
+                    # Load full trace
+                    full_trace = serializer.load(trace_meta['trace_id'])
+                    display_full_trace(full_trace)
+                except Exception as e:
+                    st.error(f"❌ Error loading trace: {str(e)}")
+                    with st.expander("Show detailed error"):
+                        st.exception(e)
 
 
 def display_trace_results(result, trace_dict):
     """Display analysis results for a new trace."""
-    
-    # Overview metrics
-    st.subheader("📊 Trace Overview")
-    col1, col2, col3, col4 = st.columns(4)
-    
+
+    # Decision Summary (Priority 1)
+    st.subheader("🎯 Decision Summary")
+
+    confidence = trace_dict['output']['probability']
+    formatted_output = format_output_token(result.output_text)
+
+    # Confidence with context
+    col1, col2 = st.columns([2, 3])
     with col1:
-        st.metric("Output Token", result.output_text)
+        st.metric("Prediction", formatted_output)
+        if formatted_output != result.output_text:
+            st.caption(f"Raw: {repr(result.output_text)}")
+
     with col2:
-        st.metric("Confidence", f"{trace_dict['output']['probability']:.1%}")
-    with col3:
-        st.metric("Inference Time", f"{result.metadata.inference_time_ms:.0f}ms")
-    with col4:
-        st.metric("Slowdown", f"{result.metadata.slowdown_factor:.1f}x")
-    
-    # Input/Output
-    st.subheader("💬 Input → Output")
-    col1, col2 = st.columns(2)
+        if confidence > 0.7:
+            st.success(f"🟢 High Confidence: {confidence:.1%}")
+            st.caption("✓ The model is very sure about this prediction")
+        elif confidence > 0.4:
+            st.warning(f"🟡 Moderate Confidence: {confidence:.1%}")
+            st.caption("⚠ Worth reviewing - model is somewhat uncertain")
+        else:
+            st.error(f"🔴 Low Confidence: {confidence:.1%}")
+            st.caption("⚠️ Manual review strongly recommended")
+
+    # Key factors (Priority 2)
+    st.subheader("📊 Key Influencing Factors")
+
+    token_influence = trace_dict['attribution']['token_influence']
+    if token_influence:
+        # Get top 5 most influential tokens
+        top_tokens = sorted(
+            token_influence.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:5]
+
+        st.markdown("**The model focused primarily on these parts of your input:**")
+
+        for token, influence in top_tokens:
+            # Create a visual bar
+            bar_length = int(influence * 50)
+            bar = "█" * bar_length + "░" * (50 - bar_length)
+
+            # Color based on influence level
+            if influence > 0.15:
+                st.markdown(f"🟢 **`{token}`** {bar} **{influence:.1%}**")
+            elif influence > 0.08:
+                st.markdown(f"🟡 `{token}` {bar} {influence:.1%}")
+            else:
+                st.markdown(f"⚪ `{token}` {bar} {influence:.1%}")
+
+        # Show reasoning
+        st.info(f"💭 **Model Reasoning:** The prediction '{formatted_output}' was primarily influenced by the tokens shown above, with '{top_tokens[0][0]}' having the strongest impact ({top_tokens[0][1]:.1%}).")
+    else:
+        st.warning("No token influence data available for this trace.")
+
+    # Input visualization with highlighting
+    st.subheader("💬 Input Analysis")
+
+    # Show input with token highlighting
+    tokens = trace_dict['input']['tokens']
+    col1, col2 = st.columns([3, 1])
+
     with col1:
         st.text_area("Input", result.prompt, height=100, disabled=True)
+
+        # Create highlighted version
+        if token_influence:
+            st.markdown("**Token Influence Visualization:**")
+            highlighted_text = ""
+            for token in tokens:
+                influence = token_influence.get(token, 0)
+                if influence > 0.15:
+                    highlighted_text += f"**[{token}]** "  # High influence
+                elif influence > 0.08:
+                    highlighted_text += f"*{token}* "  # Medium influence
+                else:
+                    highlighted_text += f"{token} "  # Low influence
+
+            st.markdown(highlighted_text)
+            st.caption("**Bold** = High influence, *Italic* = Medium influence")
+
     with col2:
-        st.text_area("Output", result.output_text, height=100, disabled=True)
-    
-    # Display full analysis
-    display_full_trace(trace_dict)
+        st.metric("Tokens", len(tokens))
+        st.metric("Inference Time", f"{result.metadata.inference_time_ms:.0f}ms")
+        st.metric("Slowdown", f"{result.metadata.slowdown_factor:.1f}x")
+
+    # Collapse technical details
+    with st.expander("🔧 Advanced: Technical Details", expanded=False):
+        st.caption("For ML experts and researchers")
+        display_full_trace(trace_dict)
 
 
 def display_full_trace(trace_dict):
@@ -420,6 +698,14 @@ def show_about_page():
         - [TransformerLens](https://transformerlens.org)
         - [Mechanistic Interpretability](https://distill.pub)
         """)
+
+
+def cli_main():
+    """Entry point for console script."""
+    import sys
+    sys.argv = ["streamlit", "run", __file__]
+    from streamlit.web import cli as stcli
+    sys.exit(stcli.main())
 
 
 if __name__ == "__main__":
