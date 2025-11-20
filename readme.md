@@ -540,6 +540,113 @@ curl -X POST http://localhost:8000/top-tokens \
 curl http://localhost:8000/trace/20251025_143022_abc123
 ```
 
+**Advanced Mechanistic Interpretability Endpoints (NEW! 🔥)**
+
+**Activation Patching** - Measure causal effects:
+```bash
+curl -X POST http://localhost:8000/patch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clean_input": "The Eiffel Tower is in Paris",
+    "corrupted_input": "The Eiffel Tower is in London",
+    "layer": 8,
+    "component": "resid",
+    "intervention_type": "PATCH"
+  }'
+
+# Returns: logit_diff, prob_diff, kl_divergence, intervention_magnitude
+```
+
+**Causal Tracing** - Find critical layers:
+```bash
+curl -X POST http://localhost:8000/causal-trace \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clean_input": "The Eiffel Tower is in Paris",
+    "corrupted_input": "The Eiffel Tower is in London",
+    "layers": [0, 4, 8, 11],
+    "components": ["resid"]
+  }'
+
+# Returns: Results for each layer showing which layers matter most
+```
+
+**Circuit Discovery** - Find minimal circuits:
+```bash
+curl -X POST http://localhost:8000/discover-circuit \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clean_input": "The Eiffel Tower is in Paris",
+    "corrupted_input": "The Eiffel Tower is in London",
+    "task_description": "Geographic fact recall",
+    "max_components": 10
+  }'
+
+# Returns: Circuit with nodes, edges, faithfulness score, compression ratio
+```
+
+**Train SAE** - Discover monosemantic features:
+```bash
+curl -X POST http://localhost:8000/train-sae \
+  -H "Content-Type: application/json" \
+  -d '{
+    "layer": 6,
+    "prompts": ["prompt1", "prompt2", "..."],
+    "expansion_factor": 8,
+    "num_training_steps": 500
+  }'
+
+# Returns: Checkpoint path, final loss, variance explained
+```
+
+**Discover Features** - Analyze SAE features:
+```bash
+curl -X POST http://localhost:8000/sae-features \
+  -H "Content-Type: application/json" \
+  -d '{
+    "layer": 6,
+    "checkpoint_path": "data/sae/layer_6_checkpoint.pt",
+    "prompts": ["test1", "test2", "..."],
+    "top_k": 20
+  }'
+
+# Returns: List of features with descriptions and examples
+```
+
+**Feature Circuits** - Interpretable circuit discovery:
+```bash
+curl -X POST http://localhost:8000/feature-circuit \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clean_input": "The Eiffel Tower is in Paris",
+    "corrupted_input": "The Eiffel Tower is in London",
+    "task_description": "Geographic fact recall",
+    "sae_checkpoints": {
+      "6": "data/sae/layer_6_checkpoint.pt",
+      "8": "data/sae/layer_8_checkpoint.pt"
+    }
+  }'
+
+# Returns: Feature-based circuit with interpretable nodes
+```
+
+**Rate Limits for Advanced Endpoints:**
+- `/patch`: 10 requests/minute
+- `/causal-trace`: 5 requests/minute
+- `/discover-circuit`: 3 requests/minute
+- `/train-sae`: 2 requests/minute
+- `/sae-features`: 5 requests/minute
+- `/feature-circuit`: 2 requests/minute
+
+**View all endpoints:**
+```bash
+# Interactive API docs
+open http://localhost:8000/docs
+
+# Get examples
+curl http://localhost:8000/examples
+```
+
 ### 7. Cloud Deployment (New!)
 
 **Quick Start - Lambda Labs (Cheapest):**

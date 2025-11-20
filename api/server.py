@@ -29,6 +29,11 @@ from glassbox.decision_analyzer import DecisionAnalyzer
 from glassbox.analyzer import AttentionAnalyzer
 from glassbox.logging_config import setup_logging, get_logger
 from glassbox.cache import get_trace_cache, get_analysis_cache
+from glassbox.interventions import ActivationPatcher, InterventionConfig, InterventionType
+from glassbox.circuits import CircuitDiscovery
+from glassbox.sae import SparseAutoencoder, SAEConfig, SAETrainer, FeatureAnalyzer
+from glassbox.feature_discovery import FeatureDiscoveryWorkflow
+from glassbox.sae_circuits import SAECircuitDiscovery
 
 # Setup logging
 log_format = os.getenv("GLASSBOX_LOG_FORMAT", "simple")  # "simple" or "json"
@@ -113,12 +118,14 @@ tracer: Optional[ActivationTracer] = None
 serializer: Optional[TraceSerializer] = None
 decision_analyzer: Optional[DecisionAnalyzer] = None
 attention_analyzer: Optional[AttentionAnalyzer] = None
+activation_patcher: Optional[ActivationPatcher] = None
+circuit_discovery: Optional[CircuitDiscovery] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize components on startup and cleanup on shutdown."""
-    global tracer, serializer, decision_analyzer, attention_analyzer
+    global tracer, serializer, decision_analyzer, attention_analyzer, activation_patcher, circuit_discovery
     # Startup
     logger.info("Initializing GlassBox components...")
     model_name = os.getenv("GLASSBOX_MODEL", "gpt2-small")
@@ -129,9 +136,12 @@ async def lifespan(app: FastAPI):
         serializer = TraceSerializer(output_dir="data/traces")
         decision_analyzer = DecisionAnalyzer(tracer)
         attention_analyzer = AttentionAnalyzer(tracer)
+        activation_patcher = ActivationPatcher(tracer)
+        circuit_discovery = CircuitDiscovery(tracer, threshold=0.1)
         logger.info("GlassBox API ready", extra={
             "model": model_name,
-            "components": ["tracer", "serializer", "decision_analyzer", "attention_analyzer"]
+            "components": ["tracer", "serializer", "decision_analyzer", "attention_analyzer",
+                          "activation_patcher", "circuit_discovery"]
         })
     except Exception as e:
         logger.error("Failed to initialize GlassBox components", exc_info=True, extra={"model": model_name})
@@ -772,6 +782,483 @@ async def analyze_attention_endpoint(
         )
 
 
+# ========================================
+# Advanced Mechanistic Interpretability Endpoints
+# ========================================
+
+class PatchRequest(BaseModel):
+    """Request for activation patching experiment."""
+    clean_input: str = Field(..., min_length=1, max_length=2000)
+    corrupted_input: str = Field(..., min_length=1, max_length=2000)
+    layer: int = Field(..., ge=0, le=31)
+    component: str = Field(default="resid", pattern="^(resid|attn|mlp)$")
+    intervention_type: str = Field(default="PATCH", pattern="^(PATCH|ZERO_ABLATE|MEAN_ABLATE|NOISE|RESAMPLE)$")
+    target_token: Optional[str] = None
+
+
+@app.post("/patch")
+@limiter.limit("10/minute")
+async def patch_activation(
+    request: Request,
+    patch_request: PatchRequest,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
+    """
+    Run activation patching experiment.
+
+    Patches activations from clean run into corrupted run to measure causal effect.
+
+    Args:
+        patch_request: PatchRequest with clean/corrupted inputs and intervention config
+
+    Returns:
+        Patching results with causal metrics
+
+    Example:
+        POST /patch
+        {
+            "clean_input": "The Eiffel Tower is in Paris",
+            "corrupted_input": "The Eiffel Tower is in London",
+            "layer": 8,
+            "component": "resid"
+        }
+
+        Response:
+        {
+            "logit_diff": -2.34,
+            "prob_diff": 0.15,
+            "kl_divergence": 0.42,
+            "intervention_magnitude": 1.23
+        }
+    """
+    try:
+        # Map string intervention type to enum
+        intervention_type_map = {
+            "PATCH": InterventionType.PATCH,
+            "ZERO_ABLATE": InterventionType.ZERO_ABLATE,
+            "MEAN_ABLATE": InterventionType.MEAN_ABLATE,
+            "NOISE": InterventionType.NOISE,
+            "RESAMPLE": InterventionType.RESAMPLE
+        }
+
+        intervention = InterventionConfig(
+            layer=patch_request.layer,
+            component=patch_request.component,
+            intervention_type=intervention_type_map[patch_request.intervention_type]
+        )
+
+        result = activation_patcher.patch_and_run(
+            clean_input=patch_request.clean_input,
+            corrupted_input=patch_request.corrupted_input,
+            intervention=intervention,
+            target_token=patch_request.target_token
+        )
+
+        return {
+            "logit_diff": result.logit_diff,
+            "prob_diff": result.prob_diff,
+            "kl_divergence": result.kl_divergence,
+            "intervention_magnitude": result.intervention_magnitude,
+            "clean_output": result.clean_output,
+            "corrupted_output": result.corrupted_output,
+            "patched_output": result.patched_output
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error in patching experiment: {str(e)}"
+        )
+
+
+class CausalTraceRequest(BaseModel):
+    """Request for causal tracing across layers."""
+    clean_input: str = Field(..., min_length=1, max_length=2000)
+    corrupted_input: str = Field(..., min_length=1, max_length=2000)
+    layers: Optional[List[int]] = None
+    components: List[str] = Field(default=["resid"], max_items=3)
+
+
+@app.post("/causal-trace")
+@limiter.limit("5/minute")
+async def run_causal_trace(
+    request: Request,
+    trace_request: CausalTraceRequest,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
+    """
+    Run causal tracing across layers.
+
+    Systematically patches each layer to find where information is processed.
+
+    Args:
+        trace_request: CausalTraceRequest with inputs and layer configuration
+
+    Returns:
+        Dictionary mapping layer names to intervention results
+
+    Example:
+        POST /causal-trace
+        {
+            "clean_input": "The Eiffel Tower is in Paris",
+            "corrupted_input": "The Eiffel Tower is in London",
+            "layers": [0, 4, 8, 11],
+            "components": ["resid"]
+        }
+    """
+    try:
+        results = activation_patcher.causal_trace(
+            clean_input=trace_request.clean_input,
+            corrupted_input=trace_request.corrupted_input,
+            layers=trace_request.layers,
+            components=trace_request.components
+        )
+
+        # Convert results to JSON-serializable format
+        return {
+            layer_name: {
+                "logit_diff": result.logit_diff,
+                "prob_diff": result.prob_diff,
+                "kl_divergence": result.kl_divergence,
+                "intervention_magnitude": result.intervention_magnitude
+            }
+            for layer_name, result in results.items()
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error in causal tracing: {str(e)}"
+        )
+
+
+class CircuitDiscoveryRequest(BaseModel):
+    """Request for circuit discovery."""
+    clean_input: str = Field(..., min_length=1, max_length=2000)
+    corrupted_input: str = Field(..., min_length=1, max_length=2000)
+    task_description: str = Field(..., min_length=1, max_length=200)
+    max_components: int = Field(default=10, ge=1, le=50)
+
+
+@app.post("/discover-circuit")
+@limiter.limit("3/minute")
+async def discover_circuit(
+    request: Request,
+    circuit_request: CircuitDiscoveryRequest,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
+    """
+    Discover minimal circuit for a task.
+
+    Finds the minimal subgraph of components that implements a behavior.
+
+    Args:
+        circuit_request: CircuitDiscoveryRequest with task specification
+
+    Returns:
+        Circuit with nodes, edges, and metrics
+
+    Example:
+        POST /discover-circuit
+        {
+            "clean_input": "The Eiffel Tower is in Paris",
+            "corrupted_input": "The Eiffel Tower is in London",
+            "task_description": "Geographic fact recall",
+            "max_components": 10
+        }
+    """
+    try:
+        circuit = circuit_discovery.discover_circuit(
+            clean_input=circuit_request.clean_input,
+            corrupted_input=circuit_request.corrupted_input,
+            task_description=circuit_request.task_description,
+            max_components=circuit_request.max_components
+        )
+
+        # Get total number of layers for compression ratio
+        num_total_components = tracer.model.cfg.n_layers * 3  # resid, attn, mlp per layer
+
+        return {
+            "task": circuit.task,
+            "num_components": circuit.get_num_components(),
+            "faithfulness_score": circuit.faithfulness_score,
+            "compression_ratio": circuit.get_compression_ratio(num_total_components),
+            "nodes": [
+                {
+                    "layer": node.layer,
+                    "component": node.component,
+                    "importance": node.importance
+                }
+                for node in circuit.nodes
+            ],
+            "visualization": circuit_discovery.visualize_circuit(circuit)
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error in circuit discovery: {str(e)}"
+        )
+
+
+class SAETrainRequest(BaseModel):
+    """Request to train SAE on a layer."""
+    layer: int = Field(..., ge=0, le=31)
+    prompts: List[str] = Field(..., min_items=10, max_items=1000)
+    expansion_factor: int = Field(default=8, ge=2, le=16)
+    l1_coefficient: float = Field(default=0.001, ge=0.0001, le=0.01)
+    num_training_steps: int = Field(default=500, ge=100, le=5000)
+
+
+@app.post("/train-sae")
+@limiter.limit("2/minute")
+async def train_sae(
+    request: Request,
+    sae_request: SAETrainRequest,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
+    """
+    Train Sparse Autoencoder on a layer.
+
+    Trains SAE to discover monosemantic features in layer activations.
+
+    Args:
+        sae_request: SAETrainRequest with training configuration
+
+    Returns:
+        Training results and SAE checkpoint path
+
+    Example:
+        POST /train-sae
+        {
+            "layer": 6,
+            "prompts": ["prompt1", "prompt2", ...],
+            "expansion_factor": 8,
+            "num_training_steps": 500
+        }
+    """
+    try:
+        # Initialize workflow
+        workflow = FeatureDiscoveryWorkflow(
+            model_name=tracer.model_name,
+            layer=sae_request.layer
+        )
+
+        # Collect training data
+        training_data = workflow.collect_training_data(
+            sae_request.prompts,
+            max_samples=2000
+        )
+
+        # Train SAE
+        sae, training_stats = workflow.train_sae(
+            training_data,
+            expansion_factor=sae_request.expansion_factor,
+            l1_coefficient=sae_request.l1_coefficient,
+            num_steps=sae_request.num_training_steps
+        )
+
+        # Save SAE checkpoint
+        checkpoint_path = f"data/sae/layer_{sae_request.layer}_checkpoint.pt"
+        Path(checkpoint_path).parent.mkdir(parents=True, exist_ok=True)
+        trainer = SAETrainer(sae, sae.config)
+        trainer.save(checkpoint_path)
+
+        return {
+            "message": "SAE training complete",
+            "layer": sae_request.layer,
+            "checkpoint_path": checkpoint_path,
+            "final_loss": training_stats["loss_history"][-1],
+            "final_l0": training_stats["l0_history"][-1],
+            "variance_explained": training_stats["var_explained_history"][-1],
+            "dead_neurons": training_stats["num_dead_neurons"],
+            "d_sae": sae.config.d_sae
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error training SAE: {str(e)}"
+        )
+
+
+class SAEFeaturesRequest(BaseModel):
+    """Request to discover SAE features."""
+    layer: int = Field(..., ge=0, le=31)
+    checkpoint_path: str = Field(..., min_length=1)
+    prompts: List[str] = Field(..., min_items=5, max_items=500)
+    top_k: int = Field(default=20, ge=1, le=100)
+
+
+@app.post("/sae-features")
+@limiter.limit("5/minute")
+async def discover_sae_features(
+    request: Request,
+    features_request: SAEFeaturesRequest,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
+    """
+    Discover monosemantic features using trained SAE.
+
+    Analyzes prompts to find which features activate and what they represent.
+
+    Args:
+        features_request: SAEFeaturesRequest with checkpoint and prompts
+
+    Returns:
+        List of discovered features with descriptions and examples
+
+    Example:
+        POST /sae-features
+        {
+            "layer": 6,
+            "checkpoint_path": "data/sae/layer_6_checkpoint.pt",
+            "prompts": ["prompt1", "prompt2", ...],
+            "top_k": 20
+        }
+    """
+    try:
+        # Load SAE checkpoint
+        import torch
+        checkpoint = torch.load(features_request.checkpoint_path, map_location="cpu")
+
+        # Recreate SAE
+        sae = SparseAutoencoder(checkpoint["config"])
+        sae.load_state_dict(checkpoint["sae_state_dict"])
+
+        # Initialize analyzer
+        analyzer = FeatureAnalyzer(sae, tracer)
+
+        # Collect activations
+        analyzer.collect_activations(
+            prompts=features_request.prompts,
+            layer=features_request.layer,
+            max_examples_per_feature=10
+        )
+
+        # Get top features
+        features = analyzer.get_top_features(
+            k=features_request.top_k,
+            min_activation_frequency=3
+        )
+
+        # Analyze each feature
+        feature_results = []
+        for feature in features:
+            analysis = analyzer.analyze_feature(feature, generate_description=True)
+            feature_results.append({
+                "feature_idx": feature.feature_idx,
+                "activation_frequency": feature.activation_frequency,
+                "activation_strength": feature.activation_strength,
+                "description": analysis.get("description", "Unknown"),
+                "top_examples": [
+                    {
+                        "token": ex["token"],
+                        "prompt": ex["prompt"][:100],
+                        "activation": ex["activation"]
+                    }
+                    for ex in feature.top_activating_examples[:5]
+                ],
+                "common_tokens": analysis.get("common_tokens", [])
+            })
+
+        return {
+            "layer": features_request.layer,
+            "num_features": len(feature_results),
+            "features": feature_results
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error discovering features: {str(e)}"
+        )
+
+
+class FeatureCircuitRequest(BaseModel):
+    """Request for feature-based circuit discovery."""
+    clean_input: str = Field(..., min_length=1, max_length=2000)
+    corrupted_input: str = Field(..., min_length=1, max_length=2000)
+    task_description: str = Field(..., min_length=1, max_length=200)
+    sae_checkpoints: dict[int, str] = Field(..., min_items=1, max_items=5)  # layer -> checkpoint_path
+    max_features_per_layer: int = Field(default=10, ge=1, le=20)
+
+
+@app.post("/feature-circuit")
+@limiter.limit("2/minute")
+async def discover_feature_circuit(
+    request: Request,
+    circuit_request: FeatureCircuitRequest,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
+    """
+    Discover circuit based on SAE features.
+
+    More interpretable than raw activation circuits - each node is a monosemantic feature.
+
+    Args:
+        circuit_request: FeatureCircuitRequest with SAE checkpoints
+
+    Returns:
+        Feature circuit with interpretable nodes
+
+    Example:
+        POST /feature-circuit
+        {
+            "clean_input": "The Eiffel Tower is in Paris",
+            "corrupted_input": "The Eiffel Tower is in London",
+            "task_description": "Geographic fact recall",
+            "sae_checkpoints": {
+                "6": "data/sae/layer_6_checkpoint.pt",
+                "8": "data/sae/layer_8_checkpoint.pt"
+            },
+            "max_features_per_layer": 10
+        }
+    """
+    try:
+        import torch
+
+        # Load SAEs for each layer
+        sae_dict = {}
+        for layer_str, checkpoint_path in circuit_request.sae_checkpoints.items():
+            layer = int(layer_str)
+            checkpoint = torch.load(checkpoint_path, map_location="cpu")
+            sae = SparseAutoencoder(checkpoint["config"])
+            sae.load_state_dict(checkpoint["sae_state_dict"])
+            sae_dict[layer] = sae
+
+        # Initialize feature circuit discovery
+        feature_discovery = SAECircuitDiscovery(tracer, sae_dict, threshold=0.1)
+
+        # Discover feature circuit
+        feature_circuit = feature_discovery.discover_feature_circuit(
+            clean_input=circuit_request.clean_input,
+            corrupted_input=circuit_request.corrupted_input,
+            task_description=circuit_request.task_description,
+            max_features_per_layer=circuit_request.max_features_per_layer
+        )
+
+        # Generate explanation
+        explanation = feature_discovery.explain_feature_circuit(feature_circuit)
+
+        return {
+            "task": feature_circuit["task"],
+            "num_features": feature_circuit["num_features"],
+            "num_layers": feature_circuit["num_layers"],
+            "total_importance": feature_circuit["total_importance"],
+            "compression_ratio": feature_circuit["compression_ratio"],
+            "features_by_layer": feature_circuit["features_by_layer"],
+            "explanation": explanation,
+            "visualization": feature_discovery.visualize_feature_flow(feature_circuit)
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error in feature circuit discovery: {str(e)}"
+        )
+
+
 # Example usage and documentation
 @app.get("/examples")
 @limiter.limit("100/minute")
@@ -783,7 +1270,7 @@ async def get_examples(request: Request):
         Example requests and responses
     """
     return {
-        "examples": [
+        "basic_examples": [
             {
                 "description": "Create a new trace",
                 "method": "POST",
@@ -805,17 +1292,90 @@ async def get_examples(request: Request):
                 "description": "Get specific trace",
                 "method": "GET",
                 "endpoint": "/trace/20251014_173045_abc123"
+            }
+        ],
+        "advanced_examples": [
+            {
+                "description": "Run activation patching experiment",
+                "method": "POST",
+                "endpoint": "/patch",
+                "body": {
+                    "clean_input": "The Eiffel Tower is in Paris",
+                    "corrupted_input": "The Eiffel Tower is in London",
+                    "layer": 8,
+                    "component": "resid",
+                    "intervention_type": "PATCH"
+                }
             },
             {
-                "description": "List traces by date",
-                "method": "GET",
-                "endpoint": "/traces?date=2025-10-14"
+                "description": "Run causal tracing across layers",
+                "method": "POST",
+                "endpoint": "/causal-trace",
+                "body": {
+                    "clean_input": "The Eiffel Tower is in Paris",
+                    "corrupted_input": "The Eiffel Tower is in London",
+                    "layers": [0, 4, 8, 11],
+                    "components": ["resid"]
+                }
+            },
+            {
+                "description": "Discover minimal circuit for a task",
+                "method": "POST",
+                "endpoint": "/discover-circuit",
+                "body": {
+                    "clean_input": "The Eiffel Tower is in Paris",
+                    "corrupted_input": "The Eiffel Tower is in London",
+                    "task_description": "Geographic fact recall",
+                    "max_components": 10
+                }
+            },
+            {
+                "description": "Train SAE on a layer",
+                "method": "POST",
+                "endpoint": "/train-sae",
+                "body": {
+                    "layer": 6,
+                    "prompts": ["The Eiffel Tower is in Paris", "London is in England", "..."],
+                    "expansion_factor": 8,
+                    "num_training_steps": 500
+                }
+            },
+            {
+                "description": "Discover SAE features",
+                "method": "POST",
+                "endpoint": "/sae-features",
+                "body": {
+                    "layer": 6,
+                    "checkpoint_path": "data/sae/layer_6_checkpoint.pt",
+                    "prompts": ["test prompts..."],
+                    "top_k": 20
+                }
+            },
+            {
+                "description": "Discover feature-based circuit",
+                "method": "POST",
+                "endpoint": "/feature-circuit",
+                "body": {
+                    "clean_input": "The Eiffel Tower is in Paris",
+                    "corrupted_input": "The Eiffel Tower is in London",
+                    "task_description": "Geographic fact recall",
+                    "sae_checkpoints": {
+                        "6": "data/sae/layer_6_checkpoint.pt",
+                        "8": "data/sae/layer_8_checkpoint.pt"
+                    },
+                    "max_features_per_layer": 10
+                }
             }
         ],
         "curl_examples": [
+            "# Basic trace",
             "curl -X POST http://localhost:8000/trace -H 'Content-Type: application/json' -d '{\"prompt\": \"Hello world\"}'",
-            "curl http://localhost:8000/traces",
-            "curl http://localhost:8000/trace/20251014_173045_abc123"
+            "",
+            "# Activation patching",
+            "curl -X POST http://localhost:8000/patch -H 'Content-Type: application/json' -d '{\"clean_input\": \"The Eiffel Tower is in Paris\", \"corrupted_input\": \"The Eiffel Tower is in London\", \"layer\": 8, \"component\": \"resid\"}'",
+            "",
+            "# Causal tracing",
+            "curl -X POST http://localhost:8000/causal-trace -H 'Content-Type: application/json' -d '{\"clean_input\": \"test\", \"corrupted_input\": \"test2\", \"layers\": [0, 4, 8]}'"
         ]
     }
 
