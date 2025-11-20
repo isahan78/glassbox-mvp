@@ -135,7 +135,7 @@ async def lifespan(app: FastAPI):
         tracer = ActivationTracer(model_name=model_name)
         serializer = TraceSerializer(output_dir="data/traces")
         decision_analyzer = DecisionAnalyzer(tracer)
-        attention_analyzer = AttentionAnalyzer(tracer)
+        attention_analyzer = AttentionAnalyzer()
         activation_patcher = ActivationPatcher(tracer)
         circuit_discovery = CircuitDiscovery(tracer, threshold=0.1)
         logger.info("GlassBox API ready", extra={
