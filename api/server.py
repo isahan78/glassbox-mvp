@@ -4,7 +4,7 @@ GlassBox API - FastAPI server for trace retrieval and generation.
 Run with: uvicorn server:app --reload --port 8000
 """
 
-from fastapi import FastAPI, HTTPException, Query, Security, Depends
+from fastapi import FastAPI, HTTPException, Query, Security, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
@@ -13,7 +13,12 @@ from pathlib import Path
 import sys
 import os
 import re
+import time
+import uuid
 from contextlib import asynccontextmanager
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -22,6 +27,16 @@ from glassbox.tracer import ActivationTracer, TracerConfig
 from glassbox.serializer import TraceSerializer
 from glassbox.decision_analyzer import DecisionAnalyzer
 from glassbox.analyzer import AttentionAnalyzer
+from glassbox.logging_config import setup_logging, get_logger
+from glassbox.cache import get_trace_cache, get_analysis_cache
+
+# Setup logging
+log_format = os.getenv("GLASSBOX_LOG_FORMAT", "simple")  # "simple" or "json"
+log_level = os.getenv("GLASSBOX_LOG_LEVEL", "INFO")
+logger = setup_logging(level=log_level, format_type=log_format, logger_name="glassbox.api")
+
+# Setup rate limiting
+limiter = Limiter(key_func=get_remote_address)
 
 
 # Pydantic models for API
@@ -105,17 +120,27 @@ async def lifespan(app: FastAPI):
     """Initialize components on startup and cleanup on shutdown."""
     global tracer, serializer, decision_analyzer, attention_analyzer
     # Startup
-    print("Initializing GlassBox components...")
+    logger.info("Initializing GlassBox components...")
     model_name = os.getenv("GLASSBOX_MODEL", "gpt2-small")
-    print(f"Loading model: {model_name}")
-    tracer = ActivationTracer(model_name=model_name)
-    serializer = TraceSerializer(output_dir="data/traces")
-    decision_analyzer = DecisionAnalyzer(tracer)
-    attention_analyzer = AttentionAnalyzer(tracer)
-    print("GlassBox API ready!")
+    logger.info("Loading model", extra={"model": model_name})
+
+    try:
+        tracer = ActivationTracer(model_name=model_name)
+        serializer = TraceSerializer(output_dir="data/traces")
+        decision_analyzer = DecisionAnalyzer(tracer)
+        attention_analyzer = AttentionAnalyzer(tracer)
+        logger.info("GlassBox API ready", extra={
+            "model": model_name,
+            "components": ["tracer", "serializer", "decision_analyzer", "attention_analyzer"]
+        })
+    except Exception as e:
+        logger.error("Failed to initialize GlassBox components", exc_info=True, extra={"model": model_name})
+        raise
+
     yield
+
     # Shutdown
-    print("Shutting down GlassBox API...")
+    logger.info("Shutting down GlassBox API...")
 
 
 # Initialize FastAPI app
@@ -125,6 +150,10 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan
 )
+
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure CORS - use environment variable for allowed origins
 allowed_origins = os.getenv("GLASSBOX_CORS_ORIGINS", "http://localhost:3000,http://localhost:8501").split(",")
@@ -137,8 +166,63 @@ app.add_middleware(
 )
 
 
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """
+    Middleware to log all HTTP requests with correlation IDs.
+
+    Adds a unique request_id to each request for tracing across logs.
+    """
+    # Generate unique request ID
+    request_id = str(uuid.uuid4())
+    request.state.request_id = request_id
+
+    # Log incoming request
+    start_time = time.time()
+    logger.info("Incoming request", extra={
+        "request_id": request_id,
+        "method": request.method,
+        "path": request.url.path,
+        "client": request.client.host if request.client else "unknown"
+    })
+
+    try:
+        # Process request
+        response = await call_next(request)
+
+        # Calculate duration
+        duration_ms = (time.time() - start_time) * 1000
+
+        # Log response
+        logger.info("Request completed", extra={
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": round(duration_ms, 2)
+        })
+
+        # Add request ID to response headers for client-side tracing
+        response.headers["X-Request-ID"] = request_id
+
+        return response
+
+    except Exception as e:
+        # Log errors
+        duration_ms = (time.time() - start_time) * 1000
+        logger.error("Request failed", exc_info=True, extra={
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "duration_ms": round(duration_ms, 2)
+        })
+        raise
+
+
 @app.get("/")
-async def root():
+@limiter.limit("100/minute")
+async def root(request: Request):
     """API root endpoint with basic info."""
     auth_enabled = bool(os.getenv("GLASSBOX_API_KEY"))
     return {
@@ -151,7 +235,8 @@ async def root():
 
 
 @app.get("/health")
-async def health_check():
+@limiter.limit("100/minute")
+async def health_check(request: Request):
     """
     Health check endpoint for monitoring and load balancers.
 
@@ -169,7 +254,8 @@ async def health_check():
 
 
 @app.get("/ready")
-async def readiness_check():
+@limiter.limit("100/minute")
+async def readiness_check(request: Request):
     """
     Readiness check endpoint for Kubernetes and orchestration systems.
 
@@ -209,7 +295,9 @@ async def readiness_check():
 
 
 @app.get("/traces", response_model=List[TraceListItem])
+@limiter.limit("100/minute")
 async def list_traces(
+    request: Request,
     date: Optional[str] = Query(
         None,
         description="Filter by date (YYYY-MM-DD format)",
@@ -266,7 +354,8 @@ def validate_trace_id(trace_id: str) -> str:
 
 
 @app.get("/trace/{trace_id}")
-async def get_trace(trace_id: str):
+@limiter.limit("100/minute")
+async def get_trace(request: Request, trace_id: str):
     """
     Retrieve full trace JSON by ID.
 
@@ -294,31 +383,33 @@ async def get_trace(trace_id: str):
 
 
 @app.post("/trace", response_model=TraceResponse)
+@limiter.limit("10/minute")
 async def create_trace(
-    request: TraceRequest,
+    request: Request,
+    trace_request: TraceRequest,
     api_key: Optional[str] = Depends(verify_api_key)
 ):
     """
     Generate a new trace for a given prompt.
-    
+
     Args:
-        request: TraceRequest with prompt and optional config
-    
+        trace_request: TraceRequest with prompt and optional config
+
     Returns:
         TraceResponse with trace_id and retrieval URL
     """
     try:
         # Build config
-        if request.config:
+        if trace_request.config:
             config = TracerConfig(
-                capture_layers=request.config.capture_layers,
-                max_seq_length=request.config.max_seq_length
+                capture_layers=trace_request.config.capture_layers,
+                max_seq_length=trace_request.config.max_seq_length
             )
         else:
             config = TracerConfig()
-        
+
         # Run trace
-        result = tracer.trace(request.prompt, config)
+        result = tracer.trace(trace_request.prompt, config)
         
         # Save trace
         filepath = serializer.save(result)
@@ -340,24 +431,25 @@ async def create_trace(
 
 
 @app.get("/stats")
-async def get_stats():
+@limiter.limit("100/minute")
+async def get_stats(request: Request):
     """
     Get API statistics.
-    
+
     Returns:
         Statistics about traces and system status
     """
     try:
         # Count total traces
         all_traces = serializer.list_traces(limit=10000)
-        
+
         # Get date distribution
         from collections import defaultdict
         date_counts = defaultdict(int)
         for trace in all_traces:
             date = trace['timestamp'][:10]
             date_counts[date] += 1
-        
+
         return {
             "total_traces": len(all_traces),
             "traces_by_date": dict(sorted(date_counts.items())),
@@ -371,8 +463,75 @@ async def get_stats():
         )
 
 
+@app.get("/cache/stats")
+@limiter.limit("100/minute")
+async def get_cache_stats(request: Request):
+    """
+    Get cache performance statistics.
+
+    Returns:
+        Cache metrics including hit rates, sizes, and hot traces
+    """
+    try:
+        trace_cache = get_trace_cache()
+        analysis_cache = get_analysis_cache()
+
+        return {
+            "trace_cache": trace_cache.get_stats(),
+            "analysis_cache": analysis_cache.get_stats()
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving cache stats: {str(e)}"
+        )
+
+
+@app.post("/cache/clear")
+@limiter.limit("5/minute")
+async def clear_cache(
+    request: Request,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
+    """
+    Clear all cache entries (requires authentication).
+
+    Returns:
+        Confirmation message with cleared entry counts
+    """
+    try:
+        trace_cache = get_trace_cache()
+        analysis_cache = get_analysis_cache()
+
+        # Get stats before clearing
+        trace_count = len(trace_cache._cache)
+        analysis_count = len(analysis_cache._cache)
+
+        # Clear caches
+        trace_cache.clear()
+        analysis_cache.clear()
+
+        logger.info("Cache cleared via API", extra={
+            "trace_entries_cleared": trace_count,
+            "analysis_entries_cleared": analysis_count
+        })
+
+        return {
+            "message": "Cache cleared successfully",
+            "trace_entries_cleared": trace_count,
+            "analysis_entries_cleared": analysis_count
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error clearing cache: {str(e)}"
+        )
+
+
 @app.delete("/trace/{trace_id}")
+@limiter.limit("20/minute")
 async def delete_trace(
+    request: Request,
     trace_id: str,
     api_key: Optional[str] = Depends(verify_api_key)
 ):
@@ -417,15 +576,17 @@ class AnalyzeChoicesRequest(BaseModel):
 
 
 @app.post("/analyze-choices")
+@limiter.limit("10/minute")
 async def analyze_choices(
-    request: AnalyzeChoicesRequest,
+    request: Request,
+    analyze_request: AnalyzeChoicesRequest,
     api_key: Optional[str] = Depends(verify_api_key)
 ):
     """
     Analyze probabilities for specific answer choices.
 
     Args:
-        request: AnalyzeChoicesRequest with prompt and list of choices
+        analyze_request: AnalyzeChoicesRequest with prompt and list of choices
 
     Returns:
         Dictionary with result and probabilities for each choice
@@ -445,8 +606,8 @@ async def analyze_choices(
     """
     try:
         result, probs = decision_analyzer.analyze_choices(
-            request.prompt,
-            request.choices
+            analyze_request.prompt,
+            analyze_request.choices
         )
 
         # Save trace
@@ -480,15 +641,17 @@ class TopTokensRequest(BaseModel):
 
 
 @app.post("/top-tokens")
+@limiter.limit("10/minute")
 async def get_top_tokens_endpoint(
-    request: TopTokensRequest,
+    request: Request,
+    tokens_request: TopTokensRequest,
     api_key: Optional[str] = Depends(verify_api_key)
 ):
     """
     Get top-k most likely next tokens for a prompt.
 
     Args:
-        request: TopTokensRequest with prompt and top_k
+        tokens_request: TopTokensRequest with prompt and top_k
 
     Returns:
         List of (token, probability) tuples
@@ -511,10 +674,10 @@ async def get_top_tokens_endpoint(
     """
     try:
         # First trace the prompt
-        result = tracer.trace(request.prompt)
+        result = tracer.trace(tokens_request.prompt)
 
         # Get top tokens
-        top_tokens = decision_analyzer.get_top_tokens(result, top_k=request.top_k)
+        top_tokens = decision_analyzer.get_top_tokens(result, top_k=tokens_request.top_k)
 
         # Save trace
         trace_id = serializer.save(result).stem.replace("trace_", "")
@@ -537,15 +700,17 @@ class AnalyzeAttentionRequest(BaseModel):
 
 
 @app.post("/analyze")
+@limiter.limit("20/minute")
 async def analyze_attention_endpoint(
-    request: AnalyzeAttentionRequest,
+    request: Request,
+    attention_request: AnalyzeAttentionRequest,
     api_key: Optional[str] = Depends(verify_api_key)
 ):
     """
     Analyze attention patterns for a previously generated trace.
 
     Args:
-        request: AnalyzeAttentionRequest with trace_id and top_n
+        attention_request: AnalyzeAttentionRequest with trace_id and top_n
 
     Returns:
         Attention analysis results with top attention heads
@@ -557,7 +722,7 @@ async def analyze_attention_endpoint(
             "top_n": 10
         }
     """
-    trace_id = validate_trace_id(request.trace_id)
+    trace_id = validate_trace_id(attention_request.trace_id)
 
     try:
         # Load trace
@@ -577,7 +742,7 @@ async def analyze_attention_endpoint(
 
         # Analyze attention
         head_scores = attention_analyzer.rank_attention_heads(result)
-        top_heads = head_scores[:request.top_n]
+        top_heads = head_scores[:attention_request.top_n]
 
         # Format response
         return {
@@ -609,7 +774,8 @@ async def analyze_attention_endpoint(
 
 # Example usage and documentation
 @app.get("/examples")
-async def get_examples():
+@limiter.limit("100/minute")
+async def get_examples(request: Request):
     """
     Get example API usage.
     

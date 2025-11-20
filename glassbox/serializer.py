@@ -14,6 +14,14 @@ import torch
 
 from glassbox.tracer import TraceResult
 from glassbox.analyzer import AttentionAnalyzer
+from glassbox.logging_config import get_logger
+from glassbox.cache import get_trace_cache
+
+# Setup logger for this module
+logger = get_logger(__name__)
+
+# Get global cache instance
+trace_cache = get_trace_cache()
 
 
 class TraceSerializer:
@@ -167,33 +175,51 @@ class TraceSerializer:
         
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(trace_dict, f, indent=2, ensure_ascii=False)
-        
-        print(f"✅ Saved trace to: {filepath}")
+
+        logger.info("Trace saved successfully", extra={
+            "trace_id": trace_dict['trace_id'],
+            "filepath": str(filepath),
+            "model": trace_result.metadata.model_name
+        })
         return filepath
     
     def load(self, trace_id: str) -> Dict[str, Any]:
         """
-        Load a trace by ID.
-        
+        Load a trace by ID (with caching).
+
         Args:
             trace_id: Trace identifier (with or without date prefix)
-            
+
         Returns:
             Trace dictionary
-            
+
         Raises:
             FileNotFoundError: If trace not found
         """
+        # Try cache first
+        cached = trace_cache.get(trace_id)
+        if cached is not None:
+            logger.debug("Trace loaded from cache", extra={"trace_id": trace_id})
+            return cached
+
+        # Cache miss - load from disk
+        logger.debug("Trace not in cache, loading from disk", extra={"trace_id": trace_id})
+
         # Search for file in all date directories
         for date_dir in self.output_dir.iterdir():
             if not date_dir.is_dir():
                 continue
-            
+
             filepath = date_dir / f"trace_{trace_id}.json"
             if filepath.exists():
                 with open(filepath, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-        
+                    trace_data = json.load(f)
+
+                # Store in cache for future access
+                trace_cache.put(trace_id, trace_data)
+
+                return trace_data
+
         raise FileNotFoundError(f"Trace '{trace_id}' not found in {self.output_dir}")
     
     def list_traces(
@@ -259,7 +285,7 @@ class TraceSerializer:
                         "filepath": str(filepath)
                     })
                 except Exception as e:
-                    print(f"⚠️  Error loading {filepath}: {e}")
+                    logger.warning("Error loading trace file", extra={"filepath": str(filepath), "error": str(e)})
                     continue
             
             if len(traces) >= limit:
@@ -269,11 +295,11 @@ class TraceSerializer:
     
     def delete(self, trace_id: str) -> bool:
         """
-        Delete a trace by ID.
-        
+        Delete a trace by ID (with cache invalidation).
+
         Args:
             trace_id: Trace identifier
-            
+
         Returns:
             True if deleted successfully, False otherwise
         """
@@ -281,13 +307,18 @@ class TraceSerializer:
         for date_dir in self.output_dir.iterdir():
             if not date_dir.is_dir():
                 continue
-            
+
             filepath = date_dir / f"trace_{trace_id}.json"
             if filepath.exists():
                 filepath.unlink()
-                print(f"🗑️  Deleted trace: {trace_id}")
+
+                # Invalidate cache
+                trace_cache.invalidate(trace_id)
+
+                logger.info("Trace deleted successfully", extra={"trace_id": trace_id, "filepath": str(filepath)})
                 return True
-        
+
+        logger.warning("Trace not found for deletion", extra={"trace_id": trace_id})
         return False
     
     def get_stats(self) -> Dict[str, Any]:

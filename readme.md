@@ -96,9 +96,13 @@ Modern LLMs are black boxes. **GlassBox** opens them up by:
 - Auto-scaling guides
 
 ✅ **Production Infrastructure** 🆕🔥
-- **Automated Testing** - 62 tests with GitHub Actions CI/CD
+- **Automated Testing** - 80+ tests (62 unit + 18 integration) with GitHub Actions CI/CD
 - **API Authentication** - Optional API key security
 - **Health Monitoring** - `/health` and `/ready` endpoints
+- **Structured Logging** - JSON logging for production with request correlation IDs
+- **Rate Limiting** - Protect API from abuse (10-100 requests/min per endpoint)
+- **Performance Caching** - LRU caching for traces (100 entries) and analysis (200 entries)
+- **Request Tracing** - Unique correlation IDs for distributed tracing
 - **Type Safety** - Full type hints with `py.typed`
 - **Security Documentation** - Comprehensive security policy
 - **Contribution Guidelines** - Professional open-source practices
@@ -287,13 +291,40 @@ uvicorn api.server:app --host 0.0.0.0 --port 8000
 # View docs at http://localhost:8000/docs
 ```
 
-**Health checks (NEW!):**
+**Production configuration (NEW!):**
+```bash
+# Configure logging (simple for dev, json for production)
+export GLASSBOX_LOG_LEVEL=INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+export GLASSBOX_LOG_FORMAT=json # "simple" (colorful) or "json" (structured)
+
+# Configure rate limiting (built-in, no setup required)
+# - Heavy endpoints (trace generation): 10 requests/minute
+# - Medium endpoints (analysis/delete): 20 requests/minute
+# - Light endpoints (read-only): 100 requests/minute
+
+# Performance caching is automatic
+# - Trace cache: 100 entries, 60 min TTL
+# - Analysis cache: 200 entries
+# View cache stats: GET /cache/stats
+# Clear cache: POST /cache/clear
+```
+
+**Health and monitoring (NEW!):**
 ```bash
 # Simple health check
 curl http://localhost:8000/health
 
 # Readiness check (verifies model loaded)
 curl http://localhost:8000/ready
+
+# Cache statistics
+curl http://localhost:8000/cache/stats
+
+# API statistics
+curl http://localhost:8000/stats
+
+# Every response includes X-Request-ID header for correlation
+curl -v http://localhost:8000/health | grep X-Request-ID
 ```
 
 **Create a trace:**
