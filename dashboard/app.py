@@ -22,6 +22,9 @@ from glassbox.analyzer import AttentionAnalyzer
 from glassbox.decision_analyzer import DecisionAnalyzer
 from glassbox.interventions import ActivationPatcher, InterventionConfig, InterventionType
 from glassbox.circuits import CircuitDiscovery
+from glassbox.sae import SparseAutoencoder, SAEConfig, SAETrainer, FeatureAnalyzer
+from glassbox.feature_discovery import FeatureDiscoveryWorkflow
+from glassbox.sae_circuits import SAECircuitDiscovery
 
 
 # Helper function to display special characters
@@ -76,7 +79,7 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.radio(
         "Select View",
-        ["🔍 New Trace", "📚 Trace Browser", "🔬 Advanced Analysis", "ℹ️ About"]
+        ["🔍 New Trace", "📚 Trace Browser", "🔬 Advanced Analysis", "🧩 SAE Features", "ℹ️ About"]
     )
 
     if page == "🔍 New Trace":
@@ -85,6 +88,8 @@ def main():
         show_trace_browser_page()
     elif page == "🔬 Advanced Analysis":
         show_advanced_analysis_page()
+    elif page == "🧩 SAE Features":
+        show_sae_features_page()
     else:
         show_about_page()
 
@@ -1043,6 +1048,238 @@ def show_circuit_discovery():
 
             except Exception as e:
                 st.error(f"Error discovering circuit: {str(e)}")
+
+
+def show_sae_features_page():
+    """Page for Sparse Autoencoder feature discovery."""
+    st.header("🧩 Sparse Autoencoder Features")
+    st.markdown("Discover monosemantic features using Sparse Autoencoders (SAEs)")
+
+    tab1, tab2, tab3 = st.tabs([
+        "📊 Feature Discovery",
+        "🔍 Feature Analysis",
+        "🔬 Feature Circuits"
+    ])
+
+    # Tab 1: Feature Discovery
+    with tab1:
+        st.subheader("Discover Monosemantic Features")
+
+        st.markdown("""
+        **What are Sparse Autoencoders?**
+
+        SAEs decompose model activations into sparse, interpretable features. Each feature
+        ideally represents a single concept ("monosemantic").
+
+        **Workflow:**
+        1. Collect activations from diverse prompts
+        2. Train SAE to reconstruct activations sparsely
+        3. Discover which features activate for which concepts
+        """)
+
+        with st.form("sae_discovery_form"):
+            st.markdown("**Training Configuration:**")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                layer = st.number_input(
+                    "Layer to analyze:",
+                    min_value=0,
+                    max_value=11,
+                    value=6,
+                    help="Which transformer layer to extract features from"
+                )
+                expansion_factor = st.number_input(
+                    "Expansion factor:",
+                    min_value=2,
+                    max_value=16,
+                    value=8,
+                    help="SAE hidden dimension = d_model × expansion_factor"
+                )
+
+            with col2:
+                num_training_steps = st.number_input(
+                    "Training steps:",
+                    min_value=100,
+                    max_value=5000,
+                    value=500,
+                    help="Number of SAE training steps"
+                )
+                l1_coefficient = st.number_input(
+                    "L1 sparsity penalty:",
+                    min_value=0.0001,
+                    max_value=0.01,
+                    value=0.001,
+                    format="%.4f",
+                    help="Strength of sparsity constraint"
+                )
+
+            training_prompts = st.text_area(
+                "Training prompts (one per line):",
+                value="The Eiffel Tower is in Paris\nLondon is the capital of England\nTokyo is the capital of Japan\nRome is the capital of Italy\nBerlin is the capital of Germany\nThe Great Wall is in China",
+                height=150,
+                help="Diverse prompts for collecting training data"
+            )
+
+            submitted = st.form_submit_button("🚀 Run Feature Discovery")
+
+        if submitted:
+            prompts = [p.strip() for p in training_prompts.split('\n') if p.strip()]
+
+            if len(prompts) < 3:
+                st.error("Please provide at least 3 training prompts")
+            else:
+                with st.spinner("Running feature discovery workflow..."):
+                    try:
+                        # Initialize workflow
+                        workflow = FeatureDiscoveryWorkflow(
+                            model_name=get_tracer().model_name,
+                            layer=layer
+                        )
+
+                        # Collect training data
+                        st.info("Step 1/4: Collecting activations...")
+                        training_data = workflow.collect_training_data(prompts, max_samples=2000)
+
+                        # Train SAE
+                        st.info("Step 2/4: Training SAE...")
+                        progress_bar = st.progress(0)
+                        sae, training_stats = workflow.train_sae(
+                            training_data,
+                            expansion_factor=expansion_factor,
+                            l1_coefficient=l1_coefficient,
+                            num_steps=num_training_steps
+                        )
+                        progress_bar.progress(100)
+
+                        # Discover features
+                        st.info("Step 3/4: Discovering features...")
+                        features = workflow.discover_features(prompts, top_k=20)
+
+                        # Analyze features
+                        st.info("Step 4/4: Analyzing features...")
+                        analyses = workflow.analyze_features(features)
+
+                        st.success("✅ Feature discovery complete!")
+
+                        # Display results
+                        st.markdown("### Training Results")
+
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Final Loss", f"{training_stats['loss_history'][-1]:.4f}")
+                        with col2:
+                            st.metric("Active Features", f"{training_stats['l0_history'][-1]:.0f}")
+                        with col3:
+                            st.metric("Variance Explained", f"{training_stats['var_explained_history'][-1]:.1%}")
+                        with col4:
+                            st.metric("Dead Neurons", f"{training_stats['num_dead_neurons']}")
+
+                        # Training plots
+                        st.markdown("### Training Progress")
+
+                        fig_loss = go.Figure()
+                        fig_loss.add_trace(go.Scatter(
+                            y=training_stats['loss_history'],
+                            mode='lines',
+                            name='Total Loss'
+                        ))
+                        fig_loss.update_layout(
+                            title="Training Loss",
+                            xaxis_title="Step",
+                            yaxis_title="Loss",
+                            height=300
+                        )
+                        st.plotly_chart(fig_loss, use_container_width=True)
+
+                        # Features discovered
+                        st.markdown("### Discovered Features")
+                        st.markdown(f"Found **{len(features)}** monosemantic features")
+
+                        for i, feature in enumerate(features[:10]):  # Show top 10
+                            with st.expander(f"Feature {feature.feature_idx} - Activation: {feature.activation_strength:.3f}"):
+                                analysis = analyses[i]
+
+                                st.markdown(f"**Description:** {analysis.get('description', 'Unknown')}")
+                                st.markdown(f"**Activation frequency:** {feature.activation_frequency}")
+                                st.markdown(f"**Decoder norm:** {analysis.get('decoder_norm', 0):.3f}")
+
+                                # Top examples
+                                st.markdown("**Top activating examples:**")
+                                for ex in feature.top_activating_examples[:5]:
+                                    st.markdown(f"- `{ex['token']}` in: \"{ex['prompt'][:60]}...\" (activation: {ex['activation']:.3f})")
+
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                        import traceback
+                        st.code(traceback.format_exc())
+
+    # Tab 2: Feature Analysis
+    with tab2:
+        st.subheader("Analyze Individual Features")
+
+        st.markdown("""
+        Analyze specific SAE features to understand what concepts they represent.
+        """)
+
+        with st.form("feature_analysis_form"):
+            prompt = st.text_input(
+                "Prompt to analyze:",
+                value="The Eiffel Tower is in Paris"
+            )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                layer = st.number_input("Layer:", min_value=0, max_value=11, value=6, key="analysis_layer")
+            with col2:
+                top_k_features = st.number_input("Top features to show:", min_value=5, max_value=50, value=20, key="top_k")
+
+            analyze_btn = st.form_submit_button("🔍 Analyze Features")
+
+        if analyze_btn:
+            st.info("To analyze features, first run feature discovery in the Discovery tab")
+
+    # Tab 3: Feature Circuits
+    with tab3:
+        st.subheader("Feature-Based Circuit Discovery")
+
+        st.markdown("""
+        Discover circuits based on SAE features instead of raw activations.
+        This provides more interpretable circuits where each node is a monosemantic feature.
+        """)
+
+        with st.form("feature_circuit_form"):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                clean_input = st.text_input(
+                    "Clean input:",
+                    value="The Eiffel Tower is in Paris"
+                )
+
+            with col2:
+                corrupted_input = st.text_input(
+                    "Corrupted input:",
+                    value="The Eiffel Tower is in London"
+                )
+
+            task_description = st.text_input(
+                "Task description:",
+                value="Geographic fact recall"
+            )
+
+            discover_circuit_btn = st.form_submit_button("🔬 Discover Feature Circuit")
+
+        if discover_circuit_btn:
+            st.info("To discover feature circuits, first train SAEs on multiple layers in the Discovery tab")
+
+        st.markdown("""
+        **Benefits of feature-level circuits:**
+        - More interpretable than raw activation circuits
+        - Each feature represents a single concept
+        - Easier to understand model behavior
+        - Can manually inspect what features do
+        """)
 
 
 def cli_main():
