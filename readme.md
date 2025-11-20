@@ -2,10 +2,12 @@
 
 **Interpretable-by-design AI runtime that captures and visualizes how language models arrive at their outputs.**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/glassbox-ai/glassbox-mvp)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/isahan78/glassbox-mvp)
 [![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 [![Models](https://img.shields.io/badge/models-GPT--2%20%7C%20Llama%202%20%7C%20Mistral-purple.svg)](https://transformerlens.org)
+[![Tests](https://github.com/isahan78/glassbox-mvp/workflows/Tests/badge.svg)](https://github.com/isahan78/glassbox-mvp/actions)
+[![Production Ready](https://img.shields.io/badge/production%20ready-4.5%2F5-brightgreen.svg)](CRITICAL_FIXES_COMPLETED.md)
 
 > *"Finally understand what your language model is thinking."*
 
@@ -22,6 +24,21 @@ Modern LLMs are black boxes. **GlassBox** opens them up by:
 - 🎨 **Visualizing decisions** interactively
 
 **Perfect for:** AI safety researchers, enterprise ML teams, and anyone who needs to understand *why* a model made a decision.
+
+---
+
+## 🚨 Production Ready (v0.1.0)
+
+**Latest Update:** GlassBox is now production-ready with comprehensive infrastructure improvements!
+
+✅ **62 automated tests** passing with GitHub Actions CI/CD
+✅ **API authentication** with optional API key security
+✅ **Health monitoring** endpoints for production deployment
+✅ **Professional documentation** including security policy and contribution guide
+✅ **Type safety** with full type hints and `py.typed` marker
+✅ **Production readiness: 4.5/5** ⭐⭐⭐⭐
+
+[See what's new →](CRITICAL_FIXES_COMPLETED.md)
 
 ---
 
@@ -78,6 +95,14 @@ Modern LLMs are black boxes. **GlassBox** opens them up by:
 - Remote client for accessing cloud instances
 - Auto-scaling guides
 
+✅ **Production Infrastructure** 🆕🔥
+- **Automated Testing** - 62 tests with GitHub Actions CI/CD
+- **API Authentication** - Optional API key security
+- **Health Monitoring** - `/health` and `/ready` endpoints
+- **Type Safety** - Full type hints with `py.typed`
+- **Security Documentation** - Comprehensive security policy
+- **Contribution Guidelines** - Professional open-source practices
+
 ✅ **Compliance Ready**
 - Structured JSON traces
 - Timestamped audit trails
@@ -105,8 +130,9 @@ pip install -r requirements.txt
 # 4. Install GlassBox
 pip install -e .
 
-# 5. Test installation
-python glassbox/tracer.py
+# 5. Run tests to verify installation
+./run_tests.sh
+# Should see: ✅ All tests passed! (62 passed)
 ```
 
 ### For Llama 2 (recommended with 36GB+ RAM)
@@ -251,15 +277,41 @@ Then visit `http://localhost:8503`
 ### 6. REST API
 
 ```bash
-# Start API server
+# Start API server (development mode - no authentication)
 uvicorn api.server:app --reload --port 8000
+
+# Start API server (production mode - with authentication)
+export GLASSBOX_API_KEY=$(openssl rand -hex 32)
+uvicorn api.server:app --host 0.0.0.0 --port 8000
 
 # View docs at http://localhost:8000/docs
 ```
 
+**Health checks (NEW!):**
+```bash
+# Simple health check
+curl http://localhost:8000/health
+
+# Readiness check (verifies model loaded)
+curl http://localhost:8000/ready
+```
+
 **Create a trace:**
 ```bash
+# Without authentication (development mode)
 curl -X POST http://localhost:8000/trace \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "The capital of France is",
+    "config": {
+      "capture_layers": [8, 9, 10],
+      "max_seq_length": 128
+    }
+  }'
+
+# With authentication (production mode)
+curl -X POST http://localhost:8000/trace \
+  -H "X-API-Key: your_api_key_here" \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "The capital of France is",
@@ -511,21 +563,39 @@ result = tracer.trace(prompt, config)
 
 ## 🧪 Testing
 
+### Local Testing
+
 ```bash
-# Run all tests
+# Easy way - use the test runner script
+./run_tests.sh
+
+# Run all tests with pytest
 pytest tests/ -v
 
 # Run with coverage
-pytest --cov=glassbox tests/
+pytest tests/ --cov=glassbox --cov-report=html --cov-report=term-missing
 
 # Run specific test file
 pytest tests/test_tracer.py -v
 
-# Run validation tests
-jupyter notebook notebooks/03_validation_tests.ipynb
+# Run fast tests only (skip slow integration tests)
+./run_tests.sh --fast
 ```
 
-**Test Coverage:** >80% for core library
+### Automated Testing (CI/CD)
+
+✅ **GitHub Actions** runs automatically on every push and pull request:
+- Tests on Ubuntu and macOS
+- Python 3.10 and 3.11
+- Code quality checks (black, flake8, mypy)
+- Security scanning (safety)
+
+View test results: [GitHub Actions](https://github.com/isahan78/glassbox-mvp/actions)
+
+**Test Coverage:**
+- **62 tests** passing
+- **>80% coverage** for core library
+- All tests complete in ~46 seconds
 
 ---
 
@@ -549,6 +619,12 @@ jupyter notebook notebooks/03_validation_tests.ipynb
 - **[Llama Quick Reference](LLAMA_QUICK_REFERENCE.md)** 🆕 - Cheat sheet
 - **[Documentation Index](DOCUMENTATION_INDEX.md)** 🆕 - All docs organized
 - **[Validation Methodology](docs/VALIDATION.md)** - How we validate interpretability
+
+### Infrastructure & Operations 🆕🔥
+- **[Security Policy](SECURITY.md)** 🆕 - Vulnerability reporting, authentication, deployment security
+- **[Contributing Guide](CONTRIBUTING.md)** 🆕 - How to contribute, code style, PR process
+- **[Critical Fixes Summary](CRITICAL_FIXES_COMPLETED.md)** 🆕 - Production readiness improvements
+- **[Repository Analysis](REPO_ANALYSIS_AND_NEXT_STEPS.md)** 🆕 - Complete analysis & roadmap
 
 ### Code Examples
 - **[Decision Analysis Example](examples/decision_analysis.py)** 🆕 - Working code
@@ -589,9 +665,12 @@ jupyter notebook notebooks/03_validation_tests.ipynb
 - ✨ Natural language explanations
 
 ### v0.4 - Production Ready (Weeks 19-24)
+- ✅ **API authentication** - COMPLETED! (API key support)
+- ✅ **Health checks** - COMPLETED! (/health, /ready endpoints)
+- ✅ **CI/CD pipeline** - COMPLETED! (GitHub Actions)
 - ✨ Multi-GPU support for large models
 - ✨ PostgreSQL backend for traces
-- ✨ API authentication & rate limiting
+- ✨ Rate limiting
 - ✨ Real-time streaming inference
 
 ### v0.5 - Enterprise (Weeks 25-30)
@@ -604,39 +683,46 @@ jupyter notebook notebooks/03_validation_tests.ipynb
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how:
+We welcome contributions! GlassBox is an open-source project and we appreciate all contributions.
 
-1. **Fork the repository**
-2. **Create a feature branch**
-   ```bash
-   git checkout -b feature/amazing-feature
-   ```
-3. **Make your changes**
-   - Add tests for new features
-   - Update documentation
-   - Follow code style (run `black glassbox/`)
-4. **Commit and push**
-   ```bash
-   git commit -m "Add amazing feature"
-   git push origin feature/amazing-feature
-   ```
-5. **Open a Pull Request**
+**Please read our [Contributing Guide](CONTRIBUTING.md) for:**
+- Development setup instructions
+- Code style guidelines
+- Testing requirements
+- Pull request process
+- Git workflow
 
-### Development Setup
+### Quick Start for Contributors
 
 ```bash
-# Install dev dependencies
-pip install -e ".[dev]"
+# 1. Fork and clone
+git clone https://github.com/YOUR_USERNAME/glassbox-mvp.git
+cd glassbox-mvp
 
-# Format code
-black glassbox/ dashboard/ api/ tests/
+# 2. Set up development environment
+python3.10 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+pip install -e .
 
-# Type checking
+# 3. Run tests to verify setup
+./run_tests.sh
+
+# 4. Make your changes and test
+# ... make changes ...
+./run_tests.sh
+
+# 5. Format and lint
+black glassbox/ api/ dashboard/ tests/
 mypy glassbox/
 
-# Run tests
-pytest tests/ -v
+# 6. Commit and push
+git checkout -b feature/my-feature
+git commit -m "feat: add my feature"
+git push origin feature/my-feature
 ```
+
+**Security Issues:** See [SECURITY.md](SECURITY.md) for reporting vulnerabilities
 
 ---
 
