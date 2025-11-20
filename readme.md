@@ -78,6 +78,10 @@ Modern LLMs are black boxes. **GlassBox** opens them up by:
 - Single & multi-token modes
 - Model switching in UI
 - Trace browsing and search
+- **🔬 Advanced Analysis Page** (NEW!)
+  - 🎯 Activation Patching - Interactive causal interventions
+  - 📊 Causal Tracing - Layer-by-layer analysis with visualizations
+  - 🔍 Circuit Discovery - Find minimal circuits for tasks
 
 ✅ **REST API** 🆕
 - FastAPI endpoints with new features
@@ -277,8 +281,64 @@ Then visit `http://localhost:8503`
 - **Confidence Charts** - Per-token confidence visualization
 - **Model Support** - GPT-2, Llama 2, Mistral
 - **Trace Browser** - Search and explore saved traces
+- **🔬 Advanced Analysis** (NEW!) - Mechanistic interpretability tools:
+  - **Activation Patching** - Run causal interventions interactively
+  - **Causal Tracing** - Visualize information flow across layers
+  - **Circuit Discovery** - Find minimal circuits for specific tasks
 
-### 6. REST API
+### 6. Advanced Mechanistic Interpretability (NEW! 🔥)
+
+**Activation Patching** - Measure causal effects:
+```python
+from glassbox.interventions import ActivationPatcher, InterventionConfig, InterventionType
+
+tracer = ActivationTracer("gpt2-small")
+patcher = ActivationPatcher(tracer)
+
+# Where does the model store "Eiffel Tower → Paris"?
+result = patcher.patch_and_run(
+    clean_input="The Eiffel Tower is in Paris",
+    corrupted_input="The Eiffel Tower is in London",
+    intervention=InterventionConfig(layer=8, component="resid")
+)
+
+print(f"Causal effect: {result.logit_diff:.3f}")  # Negative = restores correct behavior
+```
+
+**Causal Tracing** - Find critical layers:
+```python
+# Trace information flow across all layers
+results = patcher.causal_trace(
+    clean_input="The Eiffel Tower is in Paris",
+    corrupted_input="The Eiffel Tower is in London",
+    layers=list(range(12))
+)
+
+# Find most important layer
+best_layer = min(results.items(), key=lambda x: x[1].logit_diff)
+print(f"Most critical: {best_layer[0]}")
+```
+
+**Circuit Discovery** - Find minimal implementations:
+```python
+from glassbox.circuits import CircuitDiscovery
+
+discovery = CircuitDiscovery(tracer, threshold=0.1)
+
+circuit = discovery.discover_circuit(
+    clean_input="The Eiffel Tower is in Paris",
+    corrupted_input="The Eiffel Tower is in London",
+    task_description="Geographic location recall"
+)
+
+print(f"Circuit uses {circuit.get_compression_ratio(36):.1%} of model")
+print(f"Faithfulness: {circuit.faithfulness_score:.1%}")
+print(discovery.visualize_circuit(circuit))
+```
+
+**All techniques available in the interactive dashboard!** 🎨
+
+### 7. REST API
 
 ```bash
 # Start API server (development mode - no authentication)
