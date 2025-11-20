@@ -82,6 +82,10 @@ Modern LLMs are black boxes. **GlassBox** opens them up by:
   - 🎯 Activation Patching - Interactive causal interventions
   - 📊 Causal Tracing - Layer-by-layer analysis with visualizations
   - 🔍 Circuit Discovery - Find minimal circuits for tasks
+- **🧩 SAE Features Page** (NEW! 🔥)
+  - 📊 Feature Discovery - Train SAEs and discover monosemantic features
+  - 🔍 Feature Analysis - Analyze individual features in detail
+  - 🔬 Feature Circuits - Circuit discovery based on interpretable features
 
 ✅ **REST API** 🆕
 - FastAPI endpoints with new features
@@ -285,6 +289,10 @@ Then visit `http://localhost:8503`
   - **Activation Patching** - Run causal interventions interactively
   - **Causal Tracing** - Visualize information flow across layers
   - **Circuit Discovery** - Find minimal circuits for specific tasks
+- **🧩 SAE Features** (NEW! 🔥) - Monosemantic feature discovery:
+  - **Feature Discovery** - Train Sparse Autoencoders on model activations
+  - **Feature Analysis** - Understand what concepts each feature represents
+  - **Feature Circuits** - Build interpretable circuits from monosemantic features
 
 ### 6. Advanced Mechanistic Interpretability (NEW! 🔥)
 
@@ -338,7 +346,101 @@ print(discovery.visualize_circuit(circuit))
 
 **All techniques available in the interactive dashboard!** 🎨
 
-### 7. REST API
+### 7. Sparse Autoencoder Features (NEW! 🔥)
+
+**Monosemantic Feature Discovery** - Discover interpretable features:
+```python
+from glassbox.feature_discovery import FeatureDiscoveryWorkflow
+
+# Initialize workflow
+workflow = FeatureDiscoveryWorkflow(
+    model_name="gpt2-small",
+    layer=6  # Middle layer
+)
+
+# Prepare diverse training prompts
+training_prompts = [
+    "The Eiffel Tower is in Paris",
+    "London is the capital of England",
+    "Tokyo is the capital of Japan",
+    # ... add 100-1000 diverse prompts for best results
+]
+
+# Run complete feature discovery workflow
+results = workflow.run_full_workflow(
+    training_prompts=training_prompts,
+    analysis_prompts=training_prompts,
+    expansion_factor=8,  # 768 → 6144 features
+    num_training_steps=1000,
+    output_dir="sae_results"
+)
+
+print(f"Discovered {results['num_features_discovered']} monosemantic features")
+```
+
+**Feature Analysis** - Understand what features represent:
+```python
+from glassbox.sae import FeatureAnalyzer
+
+# Initialize analyzer with trained SAE
+analyzer = FeatureAnalyzer(sae, tracer)
+
+# Collect feature activations
+analyzer.collect_activations(prompts=test_prompts, layer=6)
+
+# Get top features
+features = analyzer.get_top_features(k=20, min_activation_frequency=3)
+
+# Analyze each feature
+for feature in features:
+    analysis = analyzer.analyze_feature(feature, generate_description=True)
+    print(f"Feature {feature.feature_idx}: {analysis['description']}")
+    print(f"  Activation strength: {feature.activation_strength:.3f}")
+    print(f"  Top examples:")
+    for ex in feature.top_activating_examples[:3]:
+        print(f"    - {ex['token']} in '{ex['prompt'][:50]}'")
+```
+
+**Feature Circuits** - Build interpretable circuits from features:
+```python
+from glassbox.sae_circuits import SAECircuitDiscovery
+
+# Train SAEs on multiple layers
+sae_dict = {
+    6: trained_sae_layer_6,
+    8: trained_sae_layer_8,
+    10: trained_sae_layer_10
+}
+
+# Initialize feature-based circuit discovery
+discovery = SAECircuitDiscovery(tracer, sae_dict, threshold=0.1)
+
+# Discover circuit based on SAE features
+circuit = discovery.discover_feature_circuit(
+    clean_input="The Eiffel Tower is in Paris",
+    corrupted_input="The Eiffel Tower is in London",
+    task_description="Geographic fact recall"
+)
+
+print(f"Feature circuit uses {circuit['num_features']} monosemantic features")
+print(f"Compression: {circuit['compression_ratio']:.2%}")
+print(discovery.explain_feature_circuit(circuit))
+```
+
+**Key Benefits:**
+- 🎯 **Monosemantic** - Each feature represents a single concept
+- 🔬 **Interpretable** - Understand what features do by analyzing activations
+- 📊 **Sparse** - Only a few features activate per input
+- 🔍 **Circuit Discovery** - Build circuits from interpretable features
+
+**Research-backed implementation:**
+- "Towards Monosemanticity" (Anthropic, 2023)
+- "Sparse Autoencoders Find Highly Interpretable Features" (Cunningham et al., 2023)
+- "Scaling Monosemanticity" (Anthropic, 2024)
+
+**Available in the interactive dashboard!** Train SAEs and explore features visually 🎨
+
+### 8. REST API
 
 ```bash
 # Start API server (development mode - no authentication)
@@ -751,7 +853,7 @@ View test results: [GitHub Actions](https://github.com/isahan78/glassbox-mvp/act
 - ✨ Gradient-based attribution
 
 ### v0.3 - Feature Interpretability (Weeks 13-18)
-- ✨ Sparse Autoencoder (SAE) integration
+- ✅ **Sparse Autoencoder (SAE) integration** - COMPLETED! (Feature discovery, analysis, circuits)
 - ✨ Feature dictionary
 - ✨ Natural language explanations
 
