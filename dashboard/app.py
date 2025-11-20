@@ -20,6 +20,8 @@ from glassbox.tracer import ActivationTracer, TracerConfig
 from glassbox.serializer import TraceSerializer
 from glassbox.analyzer import AttentionAnalyzer
 from glassbox.decision_analyzer import DecisionAnalyzer
+from glassbox.interventions import ActivationPatcher, InterventionConfig, InterventionType
+from glassbox.circuits import CircuitDiscovery
 
 
 # Helper function to display special characters
@@ -74,13 +76,15 @@ def main():
     st.sidebar.title("Navigation")
     page = st.sidebar.radio(
         "Select View",
-        ["🔍 New Trace", "📚 Trace Browser", "ℹ️ About"]
+        ["🔍 New Trace", "📚 Trace Browser", "🔬 Advanced Analysis", "ℹ️ About"]
     )
-    
+
     if page == "🔍 New Trace":
         show_new_trace_page()
     elif page == "📚 Trace Browser":
         show_trace_browser_page()
+    elif page == "🔬 Advanced Analysis":
+        show_advanced_analysis_page()
     else:
         show_about_page()
 
@@ -698,6 +702,347 @@ def show_about_page():
         - [TransformerLens](https://transformerlens.org)
         - [Mechanistic Interpretability](https://distill.pub)
         """)
+
+
+def show_advanced_analysis_page():
+    """Page for advanced mechanistic interpretability analysis."""
+    st.header("🔬 Advanced Mechanistic Analysis")
+    st.markdown("*Causal interventions and circuit discovery tools*")
+
+    # Create tabs for different analyses
+    tab1, tab2, tab3 = st.tabs(["🎯 Activation Patching", "📊 Causal Tracing", "🔍 Circuit Discovery"])
+
+    with tab1:
+        show_activation_patching()
+
+    with tab2:
+        show_causal_tracing()
+
+    with tab3:
+        show_circuit_discovery()
+
+
+def show_activation_patching():
+    """Show activation patching interface."""
+    st.subheader("Activation Patching")
+    st.markdown("""
+    **What is it?** Replace activations from a "clean" run into a "corrupted" run to measure causal effects.
+
+    This helps answer: *Which layers/components are responsible for specific behaviors?*
+    """)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        clean_input = st.text_input(
+            "Clean Input (correct behavior)",
+            value="The Eiffel Tower is in Paris",
+            help="The prompt with correct/desired output"
+        )
+
+    with col2:
+        corrupted_input = st.text_input(
+            "Corrupted Input (counterfactual)",
+            value="The Eiffel Tower is in London",
+            help="The prompt with incorrect/undesired output"
+        )
+
+    # Intervention configuration
+    st.markdown("#### Intervention Configuration")
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        layer = st.slider("Layer to patch", 0, 11, 8, help="Which layer to intervene at")
+
+    with col2:
+        component = st.selectbox(
+            "Component",
+            ["resid", "attn", "mlp"],
+            help="Which component to patch"
+        )
+
+    with col3:
+        intervention_type = st.selectbox(
+            "Intervention Type",
+            ["PATCH", "ZERO_ABLATE", "MEAN_ABLATE"],
+            help="How to modify activations"
+        )
+
+    if st.button("Run Patching Experiment", type="primary"):
+        with st.spinner("Running experiment..."):
+            try:
+                # Initialize patcher
+                tracer = get_tracer()
+                patcher = ActivationPatcher(tracer)
+
+                # Map intervention type string to enum
+                intervention_map = {
+                    "PATCH": InterventionType.PATCH,
+                    "ZERO_ABLATE": InterventionType.ZERO_ABLATE,
+                    "MEAN_ABLATE": InterventionType.MEAN_ABLATE
+                }
+
+                # Run experiment
+                result = patcher.patch_and_run(
+                    clean_input=clean_input,
+                    corrupted_input=corrupted_input,
+                    intervention=InterventionConfig(
+                        layer=layer,
+                        component=component,
+                        intervention_type=intervention_map[intervention_type]
+                    )
+                )
+
+                # Display results
+                st.success("Experiment complete!")
+
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    st.metric(
+                        "Logit Diff",
+                        f"{result.logit_diff:.3f}",
+                        help="Change in target token logit (negative = intervention restores clean behavior)"
+                    )
+
+                with col2:
+                    st.metric(
+                        "KL Divergence",
+                        f"{result.kl_divergence:.3f}",
+                        help="Difference between output distributions"
+                    )
+
+                with col3:
+                    st.metric(
+                        "Intervention Magnitude",
+                        f"{result.intervention_magnitude:.1f}",
+                        help="L2 norm of intervention"
+                    )
+
+                # Show outputs
+                st.markdown("#### Outputs")
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.markdown("**Clean Output:**")
+                    st.code(result.clean_output)
+
+                with col2:
+                    st.markdown("**Intervened Output:**")
+                    st.code(result.intervened_output)
+
+                # Interpretation
+                st.markdown("#### Interpretation")
+                if result.logit_diff < -0.5:
+                    st.info(f"🎯 **Strong causal effect**: Layer {layer} {component} is critical for this behavior. The intervention successfully restored clean-like output.")
+                elif result.logit_diff < 0:
+                    st.info(f"📊 **Moderate effect**: Layer {layer} {component} has some influence on this behavior.")
+                else:
+                    st.info(f"❌ **Weak effect**: Layer {layer} {component} doesn't strongly affect this behavior.")
+
+            except Exception as e:
+                st.error(f"Error running experiment: {str(e)}")
+
+
+def show_causal_tracing():
+    """Show causal tracing interface."""
+    st.subheader("Causal Tracing")
+    st.markdown("""
+    **What is it?** Systematically patch each layer to find where information is processed.
+
+    This creates a "causal heatmap" showing which layers matter for specific outputs.
+    """)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        clean_input = st.text_input(
+            "Clean Input",
+            value="The Eiffel Tower is in Paris",
+            key="ct_clean"
+        )
+
+    with col2:
+        corrupted_input = st.text_input(
+            "Corrupted Input",
+            value="The Eiffel Tower is in London",
+            key="ct_corrupt"
+        )
+
+    layers_to_trace = st.multiselect(
+        "Layers to trace",
+        options=list(range(12)),
+        default=[0, 4, 8, 11],
+        help="Select which layers to analyze (fewer = faster)"
+    )
+
+    if st.button("Run Causal Trace", type="primary"):
+        with st.spinner(f"Tracing {len(layers_to_trace)} layers..."):
+            try:
+                # Initialize patcher
+                tracer = get_tracer()
+                patcher = ActivationPatcher(tracer)
+
+                # Run causal trace
+                results = patcher.causal_trace(
+                    clean_input=clean_input,
+                    corrupted_input=corrupted_input,
+                    layers=layers_to_trace,
+                    components=["resid"]
+                )
+
+                # Create dataframe for visualization
+                data = []
+                for key, result in results.items():
+                    layer = int(key.split("_")[-1])
+                    data.append({
+                        "Layer": layer,
+                        "Logit Diff": result.logit_diff,
+                        "KL Divergence": result.kl_divergence
+                    })
+
+                df = pd.DataFrame(data).sort_values("Layer")
+
+                # Display results
+                st.success("Causal trace complete!")
+
+                # Plot logit diff
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    x=df["Layer"],
+                    y=df["Logit Diff"],
+                    name="Logit Diff",
+                    marker_color=['red' if x < -0.5 else 'orange' if x < 0 else 'green' for x in df["Logit Diff"]]
+                ))
+                fig.update_layout(
+                    title="Causal Effect by Layer",
+                    xaxis_title="Layer",
+                    yaxis_title="Logit Difference",
+                    height=400
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+                # Show table
+                st.dataframe(df, use_container_width=True)
+
+                # Find most important layer
+                most_important = df.loc[df["Logit Diff"].abs().idxmax()]
+                st.info(f"🎯 **Most critical layer**: Layer {int(most_important['Layer'])} (logit diff = {most_important['Logit Diff']:.3f})")
+
+            except Exception as e:
+                st.error(f"Error running causal trace: {str(e)}")
+
+
+def show_circuit_discovery():
+    """Show circuit discovery interface."""
+    st.subheader("Circuit Discovery")
+    st.markdown("""
+    **What is it?** Find the minimal set of components that implement a specific behavior.
+
+    This reveals the "algorithmic circuit" the model uses for a task.
+    """)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        clean_input = st.text_input(
+            "Clean Input",
+            value="The Eiffel Tower is in Paris",
+            key="cd_clean"
+        )
+
+    with col2:
+        corrupted_input = st.text_input(
+            "Corrupted Input",
+            value="The Eiffel Tower is in London",
+            key="cd_corrupt"
+        )
+
+    task_description = st.text_input(
+        "Task Description",
+        value="Geographic location recall",
+        help="Describe what task this circuit implements"
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        threshold = st.slider(
+            "Importance Threshold",
+            0.0, 1.0, 0.1, 0.05,
+            help="Only include components above this importance score"
+        )
+
+    with col2:
+        max_components = st.number_input(
+            "Max Components",
+            min_value=1, max_value=36, value=10,
+            help="Limit circuit size (smaller = more compressed)"
+        )
+
+    if st.button("Discover Circuit", type="primary"):
+        with st.spinner("Discovering circuit... (this may take a minute)"):
+            try:
+                # Initialize discovery
+                tracer = get_tracer()
+                discovery = CircuitDiscovery(tracer, threshold=threshold)
+
+                # Discover circuit
+                circuit = discovery.discover_circuit(
+                    clean_input=clean_input,
+                    corrupted_input=corrupted_input,
+                    task_description=task_description,
+                    max_components=max_components
+                )
+
+                # Display results
+                st.success("Circuit discovered!")
+
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    st.metric(
+                        "Circuit Size",
+                        f"{circuit.get_num_components()} nodes",
+                        help="Number of components in circuit"
+                    )
+
+                with col2:
+                    st.metric(
+                        "Faithfulness",
+                        f"{circuit.faithfulness_score:.1%}",
+                        help="How well circuit explains behavior"
+                    )
+
+                with col3:
+                    compression = circuit.get_compression_ratio(36)
+                    st.metric(
+                        "Compression",
+                        f"{compression:.1%}",
+                        help="Circuit size / Model size"
+                    )
+
+                # Visualize circuit
+                st.markdown("#### Circuit Visualization")
+                circuit_viz = discovery.visualize_circuit(circuit)
+                st.code(circuit_viz, language="text")
+
+                # Show circuit data
+                st.markdown("#### Circuit Data")
+                with st.expander("View circuit JSON"):
+                    st.json(circuit.to_dict())
+
+                # Interpretation
+                st.markdown("#### Interpretation")
+                if compression < 0.3:
+                    st.success(f"🎯 **Highly compressed circuit**: This task uses only {compression*100:.1f}% of the model. The behavior is implemented by a small, localized circuit.")
+                elif compression < 0.6:
+                    st.info(f"📊 **Moderate compression**: This task uses {compression*100:.1f}% of the model. The behavior involves multiple components.")
+                else:
+                    st.warning(f"⚠️ **Low compression**: This task uses {compression*100:.1f}% of the model. The behavior may be distributed across many components.")
+
+            except Exception as e:
+                st.error(f"Error discovering circuit: {str(e)}")
 
 
 def cli_main():
