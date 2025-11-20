@@ -4,8 +4,9 @@ GlassBox API - FastAPI server for trace retrieval and generation.
 Run with: uvicorn server:app --reload --port 8000
 """
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Security, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from pathlib import Path
@@ -49,6 +50,47 @@ class TraceListItem(BaseModel):
     timestamp: str
     input_preview: str
     output: str
+
+
+# API Key Configuration
+API_KEY_NAME = "X-API-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+
+async def verify_api_key(api_key: Optional[str] = Security(api_key_header)):
+    """
+    Verify API key for protected endpoints.
+
+    If GLASSBOX_API_KEY environment variable is set, authentication is required.
+    If not set, authentication is disabled (development mode).
+
+    Args:
+        api_key: API key from request header
+
+    Raises:
+        HTTPException: If authentication is enabled and key is invalid
+    """
+    required_key = os.getenv("GLASSBOX_API_KEY")
+
+    # If no API key configured, allow all requests (development mode)
+    if not required_key:
+        return None
+
+    # If API key is configured, validate it
+    if not api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing API key. Include 'X-API-Key' header in your request.",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+
+    if api_key != required_key:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid API key",
+        )
+
+    return api_key
 
 
 # Global components (initialized on startup)
@@ -97,12 +139,72 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    """API health check."""
+    """API root endpoint with basic info."""
+    auth_enabled = bool(os.getenv("GLASSBOX_API_KEY"))
     return {
         "message": "GlassBox API v0.1.0",
         "status": "operational",
-        "model": "gpt2-small",
-        "docs": "/docs"
+        "authentication": "enabled" if auth_enabled else "disabled (development mode)",
+        "docs": "/docs",
+        "version": "0.1.0"
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """
+    Health check endpoint for monitoring and load balancers.
+
+    Returns simple status to indicate API is responding.
+    Does not check model loading or database connectivity.
+
+    Returns:
+        Status dictionary with HTTP 200 if healthy
+    """
+    return {
+        "status": "healthy",
+        "service": "glassbox-api",
+        "version": "0.1.0"
+    }
+
+
+@app.get("/ready")
+async def readiness_check():
+    """
+    Readiness check endpoint for Kubernetes and orchestration systems.
+
+    Checks if the API is ready to serve requests by verifying:
+    - Model is loaded
+    - Serializer is initialized
+    - Decision analyzer is ready
+
+    Returns:
+        Status dictionary with HTTP 200 if ready, 503 if not ready
+    """
+    checks = {
+        "model_loaded": tracer is not None,
+        "serializer_ready": serializer is not None,
+        "decision_analyzer_ready": decision_analyzer is not None,
+        "attention_analyzer_ready": attention_analyzer is not None,
+    }
+
+    all_ready = all(checks.values())
+
+    if not all_ready:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "status": "not_ready",
+                "checks": checks,
+                "message": "API is initializing. Please wait."
+            }
+        )
+
+    return {
+        "status": "ready",
+        "checks": checks,
+        "service": "glassbox-api",
+        "version": "0.1.0"
     }
 
 
@@ -192,7 +294,10 @@ async def get_trace(trace_id: str):
 
 
 @app.post("/trace", response_model=TraceResponse)
-async def create_trace(request: TraceRequest):
+async def create_trace(
+    request: TraceRequest,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
     """
     Generate a new trace for a given prompt.
     
@@ -267,7 +372,10 @@ async def get_stats():
 
 
 @app.delete("/trace/{trace_id}")
-async def delete_trace(trace_id: str):
+async def delete_trace(
+    trace_id: str,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
     """
     Delete a trace by ID.
 
@@ -309,7 +417,10 @@ class AnalyzeChoicesRequest(BaseModel):
 
 
 @app.post("/analyze-choices")
-async def analyze_choices(request: AnalyzeChoicesRequest):
+async def analyze_choices(
+    request: AnalyzeChoicesRequest,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
     """
     Analyze probabilities for specific answer choices.
 
@@ -369,7 +480,10 @@ class TopTokensRequest(BaseModel):
 
 
 @app.post("/top-tokens")
-async def get_top_tokens_endpoint(request: TopTokensRequest):
+async def get_top_tokens_endpoint(
+    request: TopTokensRequest,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
     """
     Get top-k most likely next tokens for a prompt.
 
@@ -423,7 +537,10 @@ class AnalyzeAttentionRequest(BaseModel):
 
 
 @app.post("/analyze")
-async def analyze_attention_endpoint(request: AnalyzeAttentionRequest):
+async def analyze_attention_endpoint(
+    request: AnalyzeAttentionRequest,
+    api_key: Optional[str] = Depends(verify_api_key)
+):
     """
     Analyze attention patterns for a previously generated trace.
 
