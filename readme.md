@@ -29,13 +29,14 @@ Modern LLMs are black boxes. **GlassBox** opens them up by:
 
 ## 🚨 Production Ready (v0.1.0)
 
-**Latest Update:** GlassBox is now production-ready with comprehensive infrastructure improvements!
+**Latest Update:** Enhanced interactive visualizations now available! 🎨
 
+✅ **Interactive visualizations** using Plotly & NetworkX for circuit discovery, causal analysis, and activation spaces
+✅ **3D activation projections** with PCA/t-SNE for exploring model representations
+✅ **Enhanced circuit graphs** with draggable nodes and importance color-coding
+✅ **Causal flow heatmaps** showing layer-by-layer information processing
 ✅ **62 automated tests** passing with GitHub Actions CI/CD
 ✅ **API authentication** with optional API key security
-✅ **Health monitoring** endpoints for production deployment
-✅ **Professional documentation** including security policy and contribution guide
-✅ **Type safety** with full type hints and `py.typed` marker
 ✅ **Production readiness: 4.5/5** ⭐⭐⭐⭐
 
 [See what's new →](CRITICAL_FIXES_COMPLETED.md)
@@ -86,12 +87,29 @@ Modern LLMs are black boxes. **GlassBox** opens them up by:
   - 📊 Feature Discovery - Train SAEs and discover monosemantic features
   - 🔍 Feature Analysis - Analyze individual features in detail
   - 🔬 Feature Circuits - Circuit discovery based on interpretable features
-- **🎨 Enhanced Visualizations** (NEW! 🔥)
-  - 📊 Interactive circuit graphs with NetworkX & Plotly
-  - 🌡️ Causal flow heatmaps and layer importance charts
-  - 🧩 SAE feature activation heatmaps
-  - 🌐 3D activation space projections (PCA/t-SNE)
-  - 👁️ Multi-head attention comparison visualizations
+- **🎨 Enhanced Interactive Visualizations** (NEW! 🔥)
+  - **📊 Circuit Graphs** - Interactive NetworkX visualizations with hierarchical layouts
+    - Drag nodes to explore circuit structure
+    - Color-coded by importance scores
+    - Hover tooltips with component details
+    - Automatic compression ratio calculations
+  - **🌡️ Causal Flow Analysis** - Multi-layer heatmaps and importance charts
+    - Layer-by-layer causal effect visualization
+    - Automatic critical layer identification
+    - Comparative analysis across components
+  - **🧩 SAE Feature Heatmaps** - Monosemantic feature activation patterns
+    - Top-k feature visualization
+    - Token-level activation strengths
+    - Distribution analysis per feature
+  - **🌐 3D Activation Space** - High-dimensional representation explorer
+    - PCA and t-SNE dimensionality reduction
+    - Interactive 3D scatter plots (rotate, zoom, pan)
+    - Cluster analysis of prompt representations
+    - Layer-specific activation patterns
+  - **👁️ Multi-head Attention** - Enhanced attention pattern visualization
+    - Side-by-side head comparison
+    - Token-level attention heatmaps
+    - Contribution score overlays
 
 ✅ **REST API** 🆕
 - FastAPI endpoints with new features
@@ -446,106 +464,215 @@ print(discovery.explain_feature_circuit(circuit))
 
 **Available in the interactive dashboard!** Train SAEs and explore features visually 🎨
 
-### 8. Enhanced Visualizations (NEW! 🔥)
+### 8. Enhanced Interactive Visualizations (NEW! 🔥)
 
-**Interactive visualizations for all advanced features using Plotly and NetworkX.**
+**Publication-quality interactive visualizations for mechanistic interpretability.**
+
+GlassBox provides five specialized visualizers built on Plotly and NetworkX for exploring model internals. All visualizations are interactive, exportable, and integrated into the dashboard.
+
+#### Circuit Graph Visualization
 
 ```python
-from glassbox.visualizations import (
-    CircuitVisualizer,
-    CausalFlowVisualizer,
-    SAEFeatureVisualizer,
-    ActivationSpaceVisualizer,
-    AttentionVisualizer
-)
+from glassbox.visualizations import CircuitVisualizer
 from glassbox.circuits import CircuitDiscovery
-from glassbox.interventions import ActivationPatcher
-import streamlit as st  # or save to file
+from glassbox.tracer import ActivationTracer
 
-# 1. Interactive Circuit Graphs
+# Initialize components
+tracer = ActivationTracer()
+discovery = CircuitDiscovery(tracer, threshold=0.1)
 circuit_viz = CircuitVisualizer()
+
+# Discover circuit
 circuit = discovery.discover_circuit(
     clean_input="The Eiffel Tower is in Paris",
     corrupted_input="The Eiffel Tower is in London",
-    task_description="Geographic fact recall"
-)
-fig = circuit_viz.create_interactive_graph(circuit, title="Geographic Circuit")
-st.plotly_chart(fig)  # or fig.write_html("circuit.html")
-
-# 2. Causal Flow Heatmaps
-causal_viz = CausalFlowVisualizer()
-patcher = ActivationPatcher(tracer)
-results = patcher.causal_trace(
-    clean_input="Paris is in France",
-    corrupted_input="Paris is in Germany",
-    layers=list(range(12))
+    task_description="Geographic fact recall",
+    max_components=15
 )
 
-# Layer importance chart
-importance_fig = causal_viz.create_layer_importance_chart(results)
-st.plotly_chart(importance_fig)
-
-# Heatmap across layers
-heatmap_fig = causal_viz.create_causal_heatmap(results, metric="logit_diff")
-st.plotly_chart(heatmap_fig)
-
-# 3. SAE Feature Activation Heatmaps
-sae_viz = SAEFeatureVisualizer()
-import numpy as np
-
-# activations shape: (num_prompts, num_features)
-activations = np.random.randn(10, 100)  # Example
-tokens = ["token1", "token2", ...]
-
-heatmap = sae_viz.create_feature_activation_heatmap(
-    activations, tokens, top_k=20
+# Create interactive graph
+fig = circuit_viz.create_interactive_graph(
+    circuit,
+    title="Geographic Fact Recall Circuit"
 )
-st.plotly_chart(heatmap)
 
-# 4. 3D Activation Space Projections
-space_viz = ActivationSpaceVisualizer()
-
-# Use PCA or t-SNE to project high-dimensional activations
-projection_fig = space_viz.create_3d_projection(
-    activations,  # shape: (num_samples, activation_dim)
-    labels=["prompt 1", "prompt 2", ...],
-    method="pca"  # or "tsne"
-)
-st.plotly_chart(projection_fig)
-
-# 5. Enhanced Attention Visualizations
-attn_viz = AttentionVisualizer()
-
-# Single head heatmap
-attn_heatmap = attn_viz.create_attention_heatmap(
-    attention_weights,  # shape: (seq_len, seq_len)
-    tokens=["The", "cat", "sat"],
-    layer=8,
-    head=5
-)
-st.plotly_chart(attn_heatmap)
-
-# Multi-head comparison
-multi_head_fig = attn_viz.create_multi_head_comparison(
-    [attn_weights_head1, attn_weights_head2, ...],
-    tokens=["The", "cat", "sat"],
-    layer=8,
-    num_heads=4
-)
-st.plotly_chart(multi_head_fig)
+# Display or export
+import streamlit as st
+st.plotly_chart(fig, use_container_width=True)
+# Or: fig.write_html("circuit.html")
 ```
 
 **Features:**
-- 🎨 **Interactive** - Zoom, pan, hover for details
-- 📊 **Publication-ready** - Export as HTML or PNG
-- 🔍 **Informative** - Color-coded importance, tooltips
-- 🌐 **3D visualization** - Explore activation spaces
-- 📈 **Multiple formats** - Works in Jupyter, Streamlit, standalone HTML
+- Hierarchical layout by layer depth
+- Nodes draggable for custom arrangements
+- Color-coded by importance scores
+- Hover tooltips show component details
+- Automatic compression metrics
 
-**All visualizations are integrated into the dashboard!** Access them via:
-- 🔬 Advanced Analysis → Circuit Discovery → Interactive graphs
-- 📊 Advanced Analysis → Causal Tracing → Heatmaps and importance charts
-- 🧩 SAE Features → Feature Discovery → Activation heatmaps
+#### Causal Flow Analysis
+
+```python
+from glassbox.visualizations import CausalFlowVisualizer
+from glassbox.interventions import ActivationPatcher
+
+# Initialize
+patcher = ActivationPatcher(tracer)
+causal_viz = CausalFlowVisualizer()
+
+# Run causal trace across all layers
+results = patcher.causal_trace(
+    clean_input="Paris is in France",
+    corrupted_input="Paris is in Germany",
+    layers=list(range(24)),  # GPT-2 Medium
+    components=["resid", "attn", "mlp"]
+)
+
+# Visualize layer importance
+importance_fig = causal_viz.create_layer_importance_chart(results)
+st.plotly_chart(importance_fig)
+
+# Heatmap across layers and components
+heatmap_fig = causal_viz.create_causal_heatmap(
+    results,
+    metric="logit_diff"
+)
+st.plotly_chart(heatmap_fig)
+```
+
+**Insights:**
+- Identify critical layers automatically
+- Compare component contributions
+- Track information flow through model
+
+#### 3D Activation Space Explorer
+
+```python
+from glassbox.visualizations import ActivationSpaceVisualizer
+
+space_viz = ActivationSpaceVisualizer()
+
+# Collect activations from multiple prompts
+prompts = [
+    "The Eiffel Tower is in Paris",
+    "The Eiffel Tower is in London",
+    "The Colosseum is in Rome",
+    "Tokyo is the capital of Japan"
+]
+
+activations = []
+for prompt in prompts:
+    result = tracer.trace(prompt)
+    # Extract layer 12 activations
+    acts = result.activation_cache["layer_12_resid"][-1, :]
+    activations.append(acts.numpy())
+
+# Project to 3D
+import numpy as np
+activations_array = np.stack(activations)
+
+fig = space_viz.create_3d_projection(
+    activations_array,
+    labels=prompts,
+    method="pca"  # or "tsne"
+)
+
+st.plotly_chart(fig)
+```
+
+**Applications:**
+- Cluster analysis of prompt representations
+- Explore how model separates concepts
+- Compare representations across layers
+- Debug unexpected model behaviors
+
+#### SAE Feature Activation Heatmaps
+
+```python
+from glassbox.visualizations import SAEFeatureVisualizer
+from glassbox.sae import SparseAutoencoder
+
+sae_viz = SAEFeatureVisualizer()
+
+# After training SAE (see Section 7)
+# Get feature activations
+feature_activations = sae.encode(layer_activations)  # shape: (n_prompts, n_features)
+
+# Visualize top features
+heatmap = sae_viz.create_feature_activation_heatmap(
+    feature_activations.numpy(),
+    tokens=["The", "Eiffel", "Tower", "is", "in", "Paris"],
+    top_k=20
+)
+st.plotly_chart(heatmap)
+
+# Analyze specific feature
+feature_dist = sae_viz.create_feature_distribution(
+    feature_activations.numpy(),
+    feature_idx=42
+)
+st.plotly_chart(feature_dist)
+```
+
+**Use Cases:**
+- Identify which features activate for specific inputs
+- Understand monosemantic feature meanings
+- Debug SAE training quality
+
+#### Visualization Features
+
+✅ **Interactive Controls**
+- Zoom, pan, rotate (3D)
+- Hover for detailed information
+- Click to select elements
+- Drag nodes (circuit graphs)
+
+✅ **Export Options**
+- HTML (interactive, standalone)
+- PNG (publication-ready)
+- SVG (vector graphics)
+- JSON (raw data)
+
+✅ **Integration**
+- Streamlit dashboard (built-in)
+- Jupyter notebooks
+- FastAPI endpoints
+- Standalone HTML pages
+
+✅ **Professional Quality**
+- Publication-ready styling
+- Customizable color schemes
+- Annotation support
+- Responsive layouts
+
+#### Dashboard Integration
+
+All visualizations are accessible in the **Streamlit dashboard**:
+
+1. **🔬 Advanced Analysis** → Circuit Discovery
+   - Interactive circuit graphs
+   - Compression metrics
+   - Component importance
+
+2. **🔬 Advanced Analysis** → Causal Tracing
+   - Layer importance charts
+   - Multi-layer heatmaps
+   - Critical layer identification
+
+3. **🔬 Advanced Analysis** → Activation Space
+   - 3D prompt clustering
+   - PCA/t-SNE projections
+   - Layer-specific views
+
+4. **🧩 SAE Features** → Feature Discovery
+   - Feature activation heatmaps
+   - Top-k feature visualization
+   - Distribution analysis
+
+**Quick Start:**
+```bash
+streamlit run dashboard/app.py
+# Navigate to Advanced Analysis or SAE Features tabs
+```
 
 ### 9. REST API
 
