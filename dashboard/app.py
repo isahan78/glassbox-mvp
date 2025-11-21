@@ -725,7 +725,12 @@ def show_advanced_analysis_page():
     st.markdown("*Causal interventions and circuit discovery tools*")
 
     # Create tabs for different analyses
-    tab1, tab2, tab3 = st.tabs(["🎯 Activation Patching", "📊 Causal Tracing", "🔍 Circuit Discovery"])
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "🎯 Activation Patching",
+        "📊 Causal Tracing",
+        "🔍 Circuit Discovery",
+        "🌐 Activation Space"
+    ])
 
     with tab1:
         show_activation_patching()
@@ -735,6 +740,9 @@ def show_advanced_analysis_page():
 
     with tab3:
         show_circuit_discovery()
+
+    with tab4:
+        show_activation_space()
 
 
 def show_activation_patching():
@@ -1086,6 +1094,124 @@ def show_circuit_discovery():
 
             except Exception as e:
                 st.error(f"Error discovering circuit: {str(e)}")
+
+
+def show_activation_space():
+    """Show 3D activation space visualization."""
+    st.subheader("3D Activation Space Visualization")
+    st.markdown("""
+    **What is it?** Visualize high-dimensional model activations in 3D using dimensionality reduction.
+
+    This helps answer: *How do different inputs cluster in the model's internal representation space?*
+    """)
+
+    # Input prompts
+    st.markdown("#### Configure Visualization")
+
+    with st.form("activation_space_form"):
+        prompts_text = st.text_area(
+            "Enter prompts to visualize (one per line):",
+            value="The Eiffel Tower is in Paris\nThe Eiffel Tower is in London\nThe Colosseum is in Rome\nThe Colosseum is in Paris\nThe Great Wall is in China\nTokyo is the capital of Japan",
+            height=150,
+            help="Enter different prompts to see how they cluster in activation space"
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            layer = st.slider(
+                "Layer to visualize",
+                0, 11, 6,
+                help="Which transformer layer to extract activations from"
+            )
+
+        with col2:
+            method = st.selectbox(
+                "Projection method",
+                ["pca", "tsne"],
+                help="PCA is faster, t-SNE may reveal more structure"
+            )
+
+        visualize_btn = st.form_submit_button("🌐 Visualize Activation Space", type="primary")
+
+    if visualize_btn:
+        prompts = [p.strip() for p in prompts_text.split('\n') if p.strip()]
+
+        if len(prompts) < 3:
+            st.error("Please provide at least 3 prompts for meaningful visualization")
+        else:
+            with st.spinner(f"Computing activations for {len(prompts)} prompts..."):
+                try:
+                    import torch
+                    import numpy as np
+
+                    # Get tracer
+                    tracer = get_tracer()
+
+                    # Collect activations
+                    all_activations = []
+                    labels = []
+
+                    for i, prompt in enumerate(prompts):
+                        # Run trace to get activations
+                        with torch.no_grad():
+                            result = tracer.trace(prompt)
+
+                            # Get layer activations (use last token)
+                            layer_key = f"layer_{layer}"
+                            if layer_key in result.activations:
+                                # Get residual stream activation at last token position
+                                acts = result.activations[layer_key]["resid_post"][0, -1, :]
+                                all_activations.append(acts.cpu().numpy())
+                                labels.append(f"{i+1}. {prompt[:40]}...")
+                            else:
+                                st.warning(f"Layer {layer} activations not found for prompt {i+1}")
+
+                    if len(all_activations) < 3:
+                        st.error("Not enough valid activations collected. Try different prompts.")
+                    else:
+                        # Stack activations
+                        activations_array = np.stack(all_activations)
+
+                        st.success(f"✅ Collected activations from {len(all_activations)} prompts")
+                        st.info(f"Activation dimensions: {activations_array.shape}")
+
+                        # Create 3D projection
+                        space_viz = ActivationSpaceVisualizer()
+
+                        fig = space_viz.create_3d_projection(
+                            activations_array,
+                            labels=labels,
+                            method=method
+                        )
+
+                        st.plotly_chart(fig, use_container_width=True)
+
+                        # Interpretation
+                        st.markdown("#### Interpretation")
+                        st.markdown("""
+                        **How to read this visualization:**
+                        - Each point represents one prompt's activation at the selected layer
+                        - Points close together = similar internal representations
+                        - Points far apart = different internal representations
+                        - Rotate/zoom to explore the structure
+
+                        **What to look for:**
+                        - Do similar prompts cluster together?
+                        - Are there distinct groups?
+                        - How does the model separate different concepts?
+                        """)
+
+                        # Show variance explained (for PCA)
+                        if method == "pca":
+                            st.info("💡 **PCA Tip**: The axes represent the top 3 principal components. Larger spreads along an axis indicate more important features.")
+                        else:
+                            st.info("💡 **t-SNE Tip**: t-SNE emphasizes local structure. Clusters are meaningful, but distances between clusters are not.")
+
+                except Exception as e:
+                    st.error(f"Error creating visualization: {str(e)}")
+                    import traceback
+                    with st.expander("Show error details"):
+                        st.code(traceback.format_exc())
 
 
 def show_sae_features_page():
