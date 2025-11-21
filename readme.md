@@ -86,6 +86,12 @@ Modern LLMs are black boxes. **GlassBox** opens them up by:
   - 📊 Feature Discovery - Train SAEs and discover monosemantic features
   - 🔍 Feature Analysis - Analyze individual features in detail
   - 🔬 Feature Circuits - Circuit discovery based on interpretable features
+- **🎨 Enhanced Visualizations** (NEW! 🔥)
+  - 📊 Interactive circuit graphs with NetworkX & Plotly
+  - 🌡️ Causal flow heatmaps and layer importance charts
+  - 🧩 SAE feature activation heatmaps
+  - 🌐 3D activation space projections (PCA/t-SNE)
+  - 👁️ Multi-head attention comparison visualizations
 
 ✅ **REST API** 🆕
 - FastAPI endpoints with new features
@@ -440,7 +446,108 @@ print(discovery.explain_feature_circuit(circuit))
 
 **Available in the interactive dashboard!** Train SAEs and explore features visually 🎨
 
-### 8. REST API
+### 8. Enhanced Visualizations (NEW! 🔥)
+
+**Interactive visualizations for all advanced features using Plotly and NetworkX.**
+
+```python
+from glassbox.visualizations import (
+    CircuitVisualizer,
+    CausalFlowVisualizer,
+    SAEFeatureVisualizer,
+    ActivationSpaceVisualizer,
+    AttentionVisualizer
+)
+from glassbox.circuits import CircuitDiscovery
+from glassbox.interventions import ActivationPatcher
+import streamlit as st  # or save to file
+
+# 1. Interactive Circuit Graphs
+circuit_viz = CircuitVisualizer()
+circuit = discovery.discover_circuit(
+    clean_input="The Eiffel Tower is in Paris",
+    corrupted_input="The Eiffel Tower is in London",
+    task_description="Geographic fact recall"
+)
+fig = circuit_viz.create_interactive_graph(circuit, title="Geographic Circuit")
+st.plotly_chart(fig)  # or fig.write_html("circuit.html")
+
+# 2. Causal Flow Heatmaps
+causal_viz = CausalFlowVisualizer()
+patcher = ActivationPatcher(tracer)
+results = patcher.causal_trace(
+    clean_input="Paris is in France",
+    corrupted_input="Paris is in Germany",
+    layers=list(range(12))
+)
+
+# Layer importance chart
+importance_fig = causal_viz.create_layer_importance_chart(results)
+st.plotly_chart(importance_fig)
+
+# Heatmap across layers
+heatmap_fig = causal_viz.create_causal_heatmap(results, metric="logit_diff")
+st.plotly_chart(heatmap_fig)
+
+# 3. SAE Feature Activation Heatmaps
+sae_viz = SAEFeatureVisualizer()
+import numpy as np
+
+# activations shape: (num_prompts, num_features)
+activations = np.random.randn(10, 100)  # Example
+tokens = ["token1", "token2", ...]
+
+heatmap = sae_viz.create_feature_activation_heatmap(
+    activations, tokens, top_k=20
+)
+st.plotly_chart(heatmap)
+
+# 4. 3D Activation Space Projections
+space_viz = ActivationSpaceVisualizer()
+
+# Use PCA or t-SNE to project high-dimensional activations
+projection_fig = space_viz.create_3d_projection(
+    activations,  # shape: (num_samples, activation_dim)
+    labels=["prompt 1", "prompt 2", ...],
+    method="pca"  # or "tsne"
+)
+st.plotly_chart(projection_fig)
+
+# 5. Enhanced Attention Visualizations
+attn_viz = AttentionVisualizer()
+
+# Single head heatmap
+attn_heatmap = attn_viz.create_attention_heatmap(
+    attention_weights,  # shape: (seq_len, seq_len)
+    tokens=["The", "cat", "sat"],
+    layer=8,
+    head=5
+)
+st.plotly_chart(attn_heatmap)
+
+# Multi-head comparison
+multi_head_fig = attn_viz.create_multi_head_comparison(
+    [attn_weights_head1, attn_weights_head2, ...],
+    tokens=["The", "cat", "sat"],
+    layer=8,
+    num_heads=4
+)
+st.plotly_chart(multi_head_fig)
+```
+
+**Features:**
+- 🎨 **Interactive** - Zoom, pan, hover for details
+- 📊 **Publication-ready** - Export as HTML or PNG
+- 🔍 **Informative** - Color-coded importance, tooltips
+- 🌐 **3D visualization** - Explore activation spaces
+- 📈 **Multiple formats** - Works in Jupyter, Streamlit, standalone HTML
+
+**All visualizations are integrated into the dashboard!** Access them via:
+- 🔬 Advanced Analysis → Circuit Discovery → Interactive graphs
+- 📊 Advanced Analysis → Causal Tracing → Heatmaps and importance charts
+- 🧩 SAE Features → Feature Discovery → Activation heatmaps
+
+### 9. REST API
 
 ```bash
 # Start API server (development mode - no authentication)

@@ -25,6 +25,13 @@ from glassbox.circuits import CircuitDiscovery
 from glassbox.sae import SparseAutoencoder, SAEConfig, SAETrainer, FeatureAnalyzer
 from glassbox.feature_discovery import FeatureDiscoveryWorkflow
 from glassbox.sae_circuits import SAECircuitDiscovery
+from glassbox.visualizations import (
+    CircuitVisualizer,
+    CausalFlowVisualizer,
+    SAEFeatureVisualizer,
+    ActivationSpaceVisualizer,
+    AttentionVisualizer
+)
 
 
 # Helper function to display special characters
@@ -489,7 +496,10 @@ def display_trace_results(result, trace_dict):
 
 def display_full_trace(trace_dict):
     """Display complete trace analysis."""
-    
+
+    # Initialize attention visualizer
+    attn_viz = AttentionVisualizer()
+
     # Top Attention Heads
     st.subheader("🎯 Top Contributing Attention Heads")
     
@@ -911,21 +921,37 @@ def show_causal_tracing():
                 # Display results
                 st.success("Causal trace complete!")
 
-                # Plot logit diff
-                fig = go.Figure()
-                fig.add_trace(go.Bar(
-                    x=df["Layer"],
-                    y=df["Logit Diff"],
-                    name="Logit Diff",
-                    marker_color=['red' if x < -0.5 else 'orange' if x < 0 else 'green' for x in df["Logit Diff"]]
-                ))
-                fig.update_layout(
-                    title="Causal Effect by Layer",
-                    xaxis_title="Layer",
-                    yaxis_title="Logit Difference",
-                    height=400
-                )
-                st.plotly_chart(fig, use_container_width=True)
+                # Use enhanced visualizations
+                causal_viz = CausalFlowVisualizer()
+
+                # Layer importance chart
+                try:
+                    importance_fig = causal_viz.create_layer_importance_chart(results)
+                    st.plotly_chart(importance_fig, use_container_width=True)
+                except Exception as e:
+                    st.warning(f"Could not create importance chart: {str(e)}")
+                    # Fallback to original visualization
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        x=df["Layer"],
+                        y=df["Logit Diff"],
+                        name="Logit Diff",
+                        marker_color=['red' if x < -0.5 else 'orange' if x < 0 else 'green' for x in df["Logit Diff"]]
+                    ))
+                    fig.update_layout(
+                        title="Causal Effect by Layer",
+                        xaxis_title="Layer",
+                        yaxis_title="Logit Difference",
+                        height=400
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+                # Causal heatmap
+                try:
+                    heatmap_fig = causal_viz.create_causal_heatmap(results, metric="logit_diff")
+                    st.plotly_chart(heatmap_fig, use_container_width=True)
+                except Exception as e:
+                    st.warning(f"Could not create causal heatmap: {str(e)}")
 
                 # Show table
                 st.dataframe(df, use_container_width=True)
@@ -1029,8 +1055,20 @@ def show_circuit_discovery():
 
                 # Visualize circuit
                 st.markdown("#### Circuit Visualization")
-                circuit_viz = discovery.visualize_circuit(circuit)
-                st.code(circuit_viz, language="text")
+
+                # Interactive graph visualization
+                circuit_visualizer = CircuitVisualizer()
+                try:
+                    circuit_fig = circuit_visualizer.create_interactive_graph(
+                        circuit,
+                        title=f"{task_description} Circuit"
+                    )
+                    st.plotly_chart(circuit_fig, use_container_width=True)
+                except Exception as e:
+                    st.warning(f"Could not create interactive graph: {str(e)}")
+                    # Fallback to text visualization
+                    circuit_viz = discovery.visualize_circuit(circuit)
+                    st.code(circuit_viz, language="text")
 
                 # Show circuit data
                 st.markdown("#### Circuit Data")
@@ -1195,6 +1233,44 @@ def show_sae_features_page():
                         # Features discovered
                         st.markdown("### Discovered Features")
                         st.markdown(f"Found **{len(features)}** monosemantic features")
+
+                        # Visualize top features
+                        sae_viz = SAEFeatureVisualizer()
+
+                        # Create activation heatmap for top features
+                        try:
+                            # Collect activations for visualization
+                            import numpy as np
+                            import torch
+
+                            # Get activations for prompts
+                            tracer = get_tracer()
+                            all_activations = []
+                            all_tokens = []
+
+                            for prompt in prompts[:5]:  # Use first 5 prompts for viz
+                                # Run through model to get activations
+                                with torch.no_grad():
+                                    result = tracer.trace(prompt)
+                                    # Get layer activations
+                                    layer_key = f"layer_{layer}"
+                                    if layer_key in result.activations:
+                                        acts = result.activations[layer_key]["resid_post"][0, -1, :]  # Last token
+                                        # Get SAE features
+                                        features_acts = sae.encode(acts.unsqueeze(0))
+                                        all_activations.append(features_acts[0].cpu().numpy())
+                                        all_tokens.append(result.output_text)
+
+                            if all_activations:
+                                activations_array = np.stack(all_activations)
+                                heatmap_fig = sae_viz.create_feature_activation_heatmap(
+                                    activations_array,
+                                    all_tokens,
+                                    top_k=20
+                                )
+                                st.plotly_chart(heatmap_fig, use_container_width=True)
+                        except Exception as e:
+                            st.warning(f"Could not create feature heatmap: {str(e)}")
 
                         for i, feature in enumerate(features[:10]):  # Show top 10
                             with st.expander(f"Feature {feature.feature_idx} - Activation: {feature.activation_strength:.3f}"):
