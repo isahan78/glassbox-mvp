@@ -10,7 +10,7 @@ Be respectful, inclusive, and constructive. We're building interpretable AI toge
 
 ### Reporting Bugs
 
-1. Check if the bug has already been reported in [GitHub Issues](https://github.com/isahan78/glassbox-mvp/issues)
+1. Check if the bug has already been reported in [GitHub Issues](https://github.com/isahan78/glassbox-engine/issues)
 2. If not, create a new issue with:
    - Clear, descriptive title
    - Steps to reproduce
@@ -57,8 +57,8 @@ Be respectful, inclusive, and constructive. We're building interpretable AI toge
 
 ```bash
 # 1. Clone your fork
-git clone https://github.com/YOUR_USERNAME/glassbox-mvp.git
-cd glassbox-mvp
+git clone https://github.com/YOUR_USERNAME/glassbox-engine.git
+cd glassbox-engine
 
 # 2. Create virtual environment
 python3.10 -m venv venv

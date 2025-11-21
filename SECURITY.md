@@ -200,7 +200,7 @@ Reporters who responsibly disclose vulnerabilities will be acknowledged in:
 
 - Security Issues: security@glassbox.ai
 - General Questions: team@glassbox.ai
-- GitHub Issues: https://github.com/isahan78/glassbox-mvp/issues (non-security only)
+- GitHub Issues: https://github.com/isahan78/glassbox-engine/issues (non-security only)
 
 ---
 

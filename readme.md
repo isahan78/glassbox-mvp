@@ -3,9 +3,9 @@
 **Mechanistic Interpretability Platform for Production AI Systems**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-62%20passing-brightgreen.svg)](https://github.com/isahan78/glassbox-mvp/actions)
+[![Tests](https://img.shields.io/badge/tests-62%20passing-brightgreen.svg)](https://github.com/isahan78/glassbox-engine/actions)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Coverage](https://img.shields.io/badge/coverage-80%25+-yellow.svg)](https://github.com/isahan78/glassbox-mvp)
+[![Coverage](https://img.shields.io/badge/coverage-80%25+-yellow.svg)](https://github.com/isahan78/glassbox-engine)
 
 GlassBox provides real-time interpretability for transformer-based language models. Built on [TransformerLens](https://github.com/neelnanda-io/TransformerLens), it enables researchers and enterprises to understand, audit, and explain AI decision-making at the mechanistic level.
 
@@ -59,8 +59,8 @@ Modern language models are increasingly deployed in high-stakes domains—financ
 ### Installation
 
 ```bash
-git clone https://github.com/isahan78/glassbox-mvp.git
-cd glassbox-mvp
+git clone https://github.com/isahan78/glassbox-engine.git
+cd glassbox-engine
 
 python3.10 -m venv venv
 source venv/bin/activate
@@ -293,7 +293,7 @@ GlassBox implements methods from recent mechanistic interpretability research:
 ## Project Structure
 
 ```
-glassbox-mvp/
+glassbox-engine/
 ├── glassbox/           # Core library
 │   ├── tracer.py       # Activation capture
 │   ├── analyzer.py     # Attention analysis
@@ -370,7 +370,7 @@ If you use GlassBox in research, please cite:
   title={GlassBox: Mechanistic Interpretability Platform},
   author={GlassBox Team},
   year={2024},
-  url={https://github.com/isahan78/glassbox-mvp}
+  url={https://github.com/isahan78/glassbox-engine}
 }
 ```
 
@@ -378,8 +378,8 @@ If you use GlassBox in research, please cite:
 
 ## Contact
 
-- **Issues**: [GitHub Issues](https://github.com/isahan78/glassbox-mvp/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/isahan78/glassbox-mvp/discussions)
+- **Issues**: [GitHub Issues](https://github.com/isahan78/glassbox-engine/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/isahan78/glassbox-engine/discussions)
 
 ---
 

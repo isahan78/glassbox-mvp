@@ -254,7 +254,7 @@ echo "📥 Cloning GlassBox repository..."
 if [ ! -d "glassbox_mvp" ]; then
     # Replace with your actual repo
     echo "Note: Replace this with your actual repository"
-    git clone https://github.com/glassbox-ai/glassbox-mvp.git || \
+    git clone https://github.com/glassbox-ai/glassbox-engine.git || \
     mkdir -p glassbox_mvp
 fi
 
