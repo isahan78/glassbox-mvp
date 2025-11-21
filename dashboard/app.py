@@ -1118,9 +1118,14 @@ def show_activation_space():
 
         col1, col2 = st.columns(2)
         with col1:
+            # Get model info to determine max layer
+            tracer = get_tracer()
+            max_layer = tracer.model.cfg.n_layers - 1
+            default_layer = max_layer // 2
+
             layer = st.slider(
                 "Layer to visualize",
-                0, 11, 6,
+                0, max_layer, default_layer,
                 help="Which transformer layer to extract activations from"
             )
 
@@ -1157,14 +1162,14 @@ def show_activation_space():
                             result = tracer.trace(prompt)
 
                             # Get layer activations (use last token)
-                            layer_key = f"layer_{layer}"
-                            if layer_key in result.activations:
+                            layer_key = f"layer_{layer}_resid"
+                            if result.activation_cache and layer_key in result.activation_cache:
                                 # Get residual stream activation at last token position
-                                acts = result.activations[layer_key]["resid_post"][0, -1, :]
-                                all_activations.append(acts.cpu().numpy())
+                                acts = result.activation_cache[layer_key][-1, :]  # Last token
+                                all_activations.append(acts.numpy() if hasattr(acts, 'numpy') else acts)
                                 labels.append(f"{i+1}. {prompt[:40]}...")
                             else:
-                                st.warning(f"Layer {layer} activations not found for prompt {i+1}")
+                                st.warning(f"Layer {layer} activations not found for prompt {i+1}. Available keys: {list(result.activation_cache.keys()) if result.activation_cache else 'None'}")
 
                     if len(all_activations) < 3:
                         st.error("Not enough valid activations collected. Try different prompts.")
