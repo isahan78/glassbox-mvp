@@ -627,13 +627,9 @@ async def analyze_choices(
             "result": {
                 "trace_id": trace_id,
                 "output_text": result.output_text,
-                "output_token": result.output_token,
-                "output_logprob": result.output_logprob,
                 "prompt": result.prompt,
-                "model_name": result.model_name,
-                "num_layers": result.num_layers,
-                "num_heads": result.num_heads,
-                "timestamp": result.timestamp
+                "model_name": result.metadata.model_name,
+                "timestamp": result.metadata.timestamp
             },
             "probabilities": probs
         }
@@ -738,36 +734,25 @@ async def analyze_attention_endpoint(
         # Load trace
         trace_data = serializer.load(trace_id)
 
-        # Reconstruct TraceResult (simplified - just need the key fields)
-        from glassbox.tracer import TraceResult
-        result = TraceResult(
-            output_text=trace_data['output_text'],
-            output_token=trace_data['output_token'],
-            output_logprob=trace_data['output_logprob'],
-            activations=trace_data['activations'],
-            attention_patterns=trace_data['attention_patterns'],
-            input_ids=trace_data['input_ids'],
-            input_tokens=trace_data['input_tokens']
-        )
+        # Use the attention heads from the stored trace directly
+        top_heads_data = trace_data.get('attribution', {}).get('top_attention_heads', [])
 
-        # Analyze attention
-        head_scores = attention_analyzer.rank_attention_heads(result)
-        top_heads = head_scores[:attention_request.top_n]
+        # Limit to requested number
+        top_heads = top_heads_data[:attention_request.top_n]
 
         # Format response
         return {
             "trace_id": trace_id,
             "top_heads": [
                 {
-                    "layer": head.layer,
-                    "head": head.head,
-                    "score": head.score,
-                    "pattern": head.pattern,
-                    "description": head.description
+                    "layer": head.get("layer"),
+                    "head": head.get("head"),
+                    "score": head.get("score"),
+                    "top_attended_tokens": head.get("top_attended_tokens", [])
                 }
                 for head in top_heads
             ],
-            "num_heads_analyzed": len(head_scores),
+            "num_heads_analyzed": len(top_heads_data),
             "analysis_method": "attention_to_output"
         }
     except FileNotFoundError:
@@ -860,8 +845,7 @@ async def patch_activation(
             "kl_divergence": result.kl_divergence,
             "intervention_magnitude": result.intervention_magnitude,
             "clean_output": result.clean_output,
-            "corrupted_output": result.corrupted_output,
-            "patched_output": result.patched_output
+            "intervened_output": result.intervened_output
         }
 
     except Exception as e:
@@ -979,7 +963,7 @@ async def discover_circuit(
         num_total_components = tracer.model.cfg.n_layers * 3  # resid, attn, mlp per layer
 
         return {
-            "task": circuit.task,
+            "task": circuit.task_description,
             "num_components": circuit.get_num_components(),
             "faithfulness_score": circuit.faithfulness_score,
             "compression_ratio": circuit.get_compression_ratio(num_total_components),
@@ -987,7 +971,7 @@ async def discover_circuit(
                 {
                     "layer": node.layer,
                     "component": node.component,
-                    "importance": node.importance
+                    "head": node.head
                 }
                 for node in circuit.nodes
             ],
