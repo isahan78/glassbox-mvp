@@ -99,11 +99,11 @@ class FeatureDiscoveryWorkflow:
             result = self.tracer.trace(prompt)
 
             # Get activations for this layer
-            if cache_key not in result.cache:
-                logger.warning(f"Layer {self.layer} not found in cache")
+            if result.activation_cache is None or cache_key not in result.activation_cache:
+                logger.warning(f"Layer {self.layer} not found in activation_cache")
                 continue
 
-            activations = result.cache[cache_key]  # [seq_len, d_model]
+            activations = result.activation_cache[cache_key]  # [seq_len, d_model]
             activations_list.append(activations)
 
             # Check if we have enough samples

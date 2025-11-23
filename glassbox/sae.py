@@ -444,13 +444,13 @@ class FeatureAnalyzer:
 
             # Get activations for this layer
             cache_key = f"layer_{layer}_resid"
-            if cache_key not in result.cache:
-                logger.warning(f"Layer {layer} not in cache", extra={
-                    "available_keys": list(result.cache.keys())
+            if result.activation_cache is None or cache_key not in result.activation_cache:
+                logger.warning(f"Layer {layer} not in activation_cache", extra={
+                    "available_keys": list(result.activation_cache.keys()) if result.activation_cache else []
                 })
                 continue
 
-            activations = result.cache[cache_key]  # [seq_len, d_model]
+            activations = result.activation_cache[cache_key]  # [seq_len, d_model]
 
             # Encode with SAE
             with torch.no_grad():
@@ -467,8 +467,8 @@ class FeatureAnalyzer:
                 active_values = pos_features[active_mask]
 
                 # Store examples for each active feature
-                for feat_idx, activation in zip(active_indices.cpu().numpy(),
-                                                 active_values.cpu().numpy()):
+                for feat_idx, activation in zip(active_indices.detach().cpu().numpy(),
+                                                 active_values.detach().cpu().numpy()):
                     feat_idx = int(feat_idx)
 
                     if feat_idx not in self.feature_examples:
@@ -565,7 +565,7 @@ class FeatureAnalyzer:
         }
 
         # Get decoder direction for this feature
-        W_dec = self.sae.get_W_dec()
+        W_dec = self.sae.get_W_dec().detach()
         decoder_weights = W_dec[:, feature.feature_idx].cpu().numpy()
 
         analysis["decoder_norm"] = float(np.linalg.norm(decoder_weights))

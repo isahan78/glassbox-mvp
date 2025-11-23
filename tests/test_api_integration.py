@@ -212,14 +212,25 @@ class TestExamplesEndpoint:
         response = client.get("/examples")
         assert response.status_code == 200
         data = response.json()
-        assert "examples" in data
-        assert len(data["examples"]) > 0
 
-        # Check example structure
-        example = data["examples"][0]
+        # Check for categorized examples structure
+        assert "basic_examples" in data
+        assert "advanced_examples" in data
+        assert "curl_examples" in data
+        assert len(data["basic_examples"]) > 0
+        assert len(data["advanced_examples"]) > 0
+
+        # Check basic example structure
+        example = data["basic_examples"][0]
         assert "description" in example
         assert "method" in example
         assert "endpoint" in example
+
+        # Check advanced example structure
+        adv_example = data["advanced_examples"][0]
+        assert "description" in adv_example
+        assert "method" in adv_example
+        assert "endpoint" in adv_example
 
 
 class TestRequestCorrelation:

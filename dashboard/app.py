@@ -58,12 +58,64 @@ st.set_page_config(
     layout="wide"
 )
 
+# Available models configuration
+AVAILABLE_MODELS = {
+    "GPT-2 Small (124M)": {
+        "name": "gpt2-small",
+        "size": "124M",
+        "layers": 12,
+        "heads": 12,
+        "memory": "~2 GB",
+        "speed": "Fast"
+    },
+    "GPT-2 Medium (355M)": {
+        "name": "gpt2-medium",
+        "size": "355M",
+        "layers": 24,
+        "heads": 16,
+        "memory": "~3 GB",
+        "speed": "Medium"
+    },
+    "GPT-2 Large (774M)": {
+        "name": "gpt2-large",
+        "size": "774M",
+        "layers": 36,
+        "heads": 20,
+        "memory": "~5 GB",
+        "speed": "Slower"
+    },
+    "GPT-2 XL (1.5B)": {
+        "name": "gpt2-xl",
+        "size": "1.5B",
+        "layers": 48,
+        "heads": 25,
+        "memory": "~6 GB",
+        "speed": "Slow"
+    },
+    "Llama 2 7B": {
+        "name": "meta-llama/Llama-2-7b-hf",
+        "size": "7B",
+        "layers": 32,
+        "heads": 32,
+        "memory": "~14 GB",
+        "speed": "Slow",
+        "note": "Requires HuggingFace login"
+    },
+    "Llama 2 13B": {
+        "name": "meta-llama/Llama-2-13b-hf",
+        "size": "13B",
+        "layers": 40,
+        "heads": 40,
+        "memory": "~26 GB",
+        "speed": "Very Slow",
+        "note": "Requires HuggingFace login"
+    },
+}
+
 # Initialize components
 @st.cache_resource
-def get_tracer():
-    """Initialize tracer (cached)."""
-    import os
-    model_name = os.getenv("GLASSBOX_MODEL", "gpt2-medium")
+def get_tracer(model_name: str = "gpt2-medium"):
+    """Initialize tracer (cached by model name)."""
     return ActivationTracer(model_name=model_name)
 
 @st.cache_resource
@@ -72,16 +124,68 @@ def get_serializer():
     return TraceSerializer(output_dir="data/traces")
 
 @st.cache_resource
-def get_analyzer():
-    """Initialize decision analyzer (cached)."""
-    tracer = get_tracer()
+def get_analyzer(model_name: str = "gpt2-medium"):
+    """Initialize decision analyzer (cached by model name)."""
+    tracer = get_tracer(model_name)
     return DecisionAnalyzer(tracer)
+
+
+def get_selected_model():
+    """Get the currently selected model name from session state."""
+    if "selected_model" not in st.session_state:
+        st.session_state.selected_model = "GPT-2 Medium (355M)"
+    return AVAILABLE_MODELS[st.session_state.selected_model]["name"]
+
+
+def get_model_max_layer():
+    """Get the maximum layer index for the selected model."""
+    if "selected_model" not in st.session_state:
+        st.session_state.selected_model = "GPT-2 Medium (355M)"
+    return AVAILABLE_MODELS[st.session_state.selected_model]["layers"] - 1
 
 
 def main():
     st.title("🧠 GlassBox Dashboard")
     st.markdown("*Interpretable-by-design AI runtime for language models*")
-    
+
+    # Sidebar - Model Selection
+    st.sidebar.title("Model Selection")
+
+    # Model selector
+    selected_display_name = st.sidebar.selectbox(
+        "Choose Model",
+        options=list(AVAILABLE_MODELS.keys()),
+        index=list(AVAILABLE_MODELS.keys()).index(
+            st.session_state.get("selected_model", "GPT-2 Medium (355M)")
+        ),
+        key="model_selector"
+    )
+
+    # Update session state if model changed
+    if st.session_state.get("selected_model") != selected_display_name:
+        st.session_state.selected_model = selected_display_name
+        # Clear cached resources when model changes
+        st.cache_resource.clear()
+        st.rerun()
+
+    # Get model info
+    model_info = AVAILABLE_MODELS[selected_display_name]
+
+    # Display model info
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**Model Info:**")
+    st.sidebar.markdown(f"- **Size:** {model_info['size']}")
+    st.sidebar.markdown(f"- **Layers:** {model_info['layers']}")
+    st.sidebar.markdown(f"- **Heads:** {model_info['heads']}")
+    st.sidebar.markdown(f"- **Memory:** {model_info['memory']}")
+    st.sidebar.markdown(f"- **Speed:** {model_info['speed']}")
+
+    # Show note if exists (e.g., for Llama models)
+    if "note" in model_info:
+        st.sidebar.warning(f"⚠️ {model_info['note']}")
+
+    st.sidebar.markdown("---")
+
     # Sidebar navigation
     st.sidebar.title("Navigation")
     page = st.sidebar.radio(
@@ -135,13 +239,19 @@ def show_new_trace_page():
         else:
             st.info("ℹ️ **Single token mode:** Predicts the next token with detailed analysis of how the model arrives at that prediction.")
 
+        # Get model info for dynamic layer range
+        model_info = AVAILABLE_MODELS[st.session_state.get("selected_model", "GPT-2 Medium (355M)")]
+        max_layer = model_info["layers"] - 1
+
         col1, col2 = st.columns(2)
         with col1:
             capture_all = st.checkbox("Capture all layers", value=True)
             if not capture_all:
+                default_start = max(0, max_layer // 2 - 2)
+                default_end = min(max_layer, max_layer // 2 + 2)
                 layer_range = st.slider(
                     "Layer range",
-                    0, 11, (5, 9)
+                    0, max_layer, (default_start, default_end)
                 )
 
         with col2:
@@ -168,7 +278,7 @@ def show_new_trace_page():
             if multi_token:
                 # Multi-token generation
                 with st.spinner(f"Generating {max_tokens} tokens with full tracing... This may take a while..."):
-                    analyzer = get_analyzer()
+                    analyzer = get_analyzer(get_selected_model())
                     full_text, traces = analyzer.generate_completion(
                         prompt,
                         max_tokens=max_tokens
@@ -182,7 +292,7 @@ def show_new_trace_page():
             else:
                 # Single token trace
                 with st.spinner("Running inference and capturing activations..."):
-                    tracer = get_tracer()
+                    tracer = get_tracer(get_selected_model())
                     result = tracer.trace(prompt, config)
 
                     # Save
@@ -661,11 +771,16 @@ def show_about_page():
     4. **Visualize**: Present findings through interactive dashboard
     
     ### Current Model
-    
-    - **Model**: GPT-2 Small (124M parameters)
-    - **Architecture**: 12 layers, 12 attention heads per layer
+    """)
+
+    # Dynamic model info
+    model_info = AVAILABLE_MODELS[st.session_state.get("selected_model", "GPT-2 Medium (355M)")]
+    st.markdown(f"""
+    - **Model**: {st.session_state.get("selected_model", "GPT-2 Medium (355M)")} ({model_info['size']} parameters)
+    - **Architecture**: {model_info['layers']} layers, {model_info['heads']} attention heads per layer
+    - **Memory**: {model_info['memory']}
     - **Context**: Up to 512 tokens
-    
+
     ### Attribution Method
     
     This MVP uses **attention pattern analysis**:
@@ -683,11 +798,12 @@ def show_about_page():
     - **Debugging**: Trace unexpected model behaviors to input features
     
     ### Limitations
-    
-    - Only supports GPT-2 architecture
+
+    - Supports GPT-2 family and Llama 2 models
     - Limited to 512 tokens
     - Attention ≠ causation (causal validation coming in v0.2)
     - Requires ML expertise to interpret results
+    - Larger models require more memory and are slower
     
     ### Version
     
@@ -775,7 +891,9 @@ def show_activation_patching():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        layer = st.slider("Layer to patch", 0, 11, 8, help="Which layer to intervene at")
+        max_layer = get_model_max_layer()
+        default_layer = min(8, max_layer)
+        layer = st.slider("Layer to patch", 0, max_layer, default_layer, help="Which layer to intervene at")
 
     with col2:
         component = st.selectbox(
@@ -795,7 +913,7 @@ def show_activation_patching():
         with st.spinner("Running experiment..."):
             try:
                 # Initialize patcher
-                tracer = get_tracer()
+                tracer = get_tracer(get_selected_model())
                 patcher = ActivationPatcher(tracer)
 
                 # Map intervention type string to enum
@@ -892,10 +1010,13 @@ def show_causal_tracing():
             key="ct_corrupt"
         )
 
+    max_layer = get_model_max_layer()
+    # Create reasonable default layers to trace (spread across model)
+    default_trace_layers = [0, max_layer // 4, max_layer // 2, max_layer]
     layers_to_trace = st.multiselect(
         "Layers to trace",
-        options=list(range(12)),
-        default=[0, 4, 8, 11],
+        options=list(range(max_layer + 1)),
+        default=default_trace_layers,
         help="Select which layers to analyze (fewer = faster)"
     )
 
@@ -903,7 +1024,7 @@ def show_causal_tracing():
         with st.spinner(f"Tracing {len(layers_to_trace)} layers..."):
             try:
                 # Initialize patcher
-                tracer = get_tracer()
+                tracer = get_tracer(get_selected_model())
                 patcher = ActivationPatcher(tracer)
 
                 # Run causal trace
@@ -1023,7 +1144,7 @@ def show_circuit_discovery():
         with st.spinner("Discovering circuit... (this may take a minute)"):
             try:
                 # Initialize discovery
-                tracer = get_tracer()
+                tracer = get_tracer(get_selected_model())
                 discovery = CircuitDiscovery(tracer, threshold=threshold)
 
                 # Discover circuit
@@ -1119,7 +1240,7 @@ def show_activation_space():
         col1, col2 = st.columns(2)
         with col1:
             # Get model info to determine max layer
-            tracer = get_tracer()
+            tracer = get_tracer(get_selected_model())
             max_layer = tracer.model.cfg.n_layers - 1
             default_layer = max_layer // 2
 
@@ -1150,7 +1271,7 @@ def show_activation_space():
                     import numpy as np
 
                     # Get tracer
-                    tracer = get_tracer()
+                    tracer = get_tracer(get_selected_model())
 
                     # Collect activations
                     all_activations = []
@@ -1249,13 +1370,14 @@ def show_sae_features_page():
         with st.form("sae_discovery_form"):
             st.markdown("**Training Configuration:**")
 
+            max_layer = get_model_max_layer()
             col1, col2 = st.columns(2)
             with col1:
                 layer = st.number_input(
                     "Layer to analyze:",
                     min_value=0,
-                    max_value=11,
-                    value=6,
+                    max_value=max_layer,
+                    value=min(6, max_layer),
                     help="Which transformer layer to extract features from"
                 )
                 expansion_factor = st.number_input(
@@ -1302,7 +1424,7 @@ def show_sae_features_page():
                     try:
                         # Initialize workflow
                         workflow = FeatureDiscoveryWorkflow(
-                            model_name=get_tracer().model_name,
+                            model_name=get_tracer(get_selected_model()).model_name,
                             layer=layer
                         )
 
@@ -1368,6 +1490,13 @@ def show_sae_features_page():
                         # Visualize top features
                         sae_viz = SAEFeatureVisualizer()
 
+                        # Store in session state for other tabs
+                        st.session_state.sae_trained = True
+                        st.session_state.sae_model = sae
+                        st.session_state.sae_layer = layer
+                        st.session_state.sae_features = features
+                        st.session_state.sae_analyses = analyses
+
                         # Create activation heatmap for top features
                         try:
                             # Collect activations for visualization
@@ -1375,7 +1504,7 @@ def show_sae_features_page():
                             import torch
 
                             # Get activations for prompts
-                            tracer = get_tracer()
+                            tracer = get_tracer(get_selected_model())
                             all_activations = []
                             all_tokens = []
 
@@ -1384,12 +1513,12 @@ def show_sae_features_page():
                                 with torch.no_grad():
                                     result = tracer.trace(prompt)
                                     # Get layer activations
-                                    layer_key = f"layer_{layer}"
-                                    if layer_key in result.activations:
-                                        acts = result.activations[layer_key]["resid_post"][0, -1, :]  # Last token
+                                    layer_key = f"layer_{layer}_resid"
+                                    if result.activation_cache and layer_key in result.activation_cache:
+                                        acts = result.activation_cache[layer_key][-1, :]  # Last token
                                         # Get SAE features
                                         features_acts = sae.encode(acts.unsqueeze(0))
-                                        all_activations.append(features_acts[0].cpu().numpy())
+                                        all_activations.append(features_acts[0].detach().cpu().numpy())
                                         all_tokens.append(result.output_text)
 
                             if all_activations:
@@ -1429,22 +1558,56 @@ def show_sae_features_page():
         Analyze specific SAE features to understand what concepts they represent.
         """)
 
-        with st.form("feature_analysis_form"):
-            prompt = st.text_input(
-                "Prompt to analyze:",
-                value="The Eiffel Tower is in Paris"
-            )
+        # Check if SAE has been trained
+        if not st.session_state.get("sae_trained", False):
+            st.warning("⚠️ No SAE trained yet. Please run Feature Discovery first in the Discovery tab.")
+        else:
+            st.success(f"✅ SAE available for layer {st.session_state.sae_layer}")
 
-            col1, col2 = st.columns(2)
-            with col1:
-                layer = st.number_input("Layer:", min_value=0, max_value=11, value=6, key="analysis_layer")
-            with col2:
+            with st.form("feature_analysis_form"):
+                prompt = st.text_input(
+                    "Prompt to analyze:",
+                    value="The Eiffel Tower is in Paris"
+                )
+
                 top_k_features = st.number_input("Top features to show:", min_value=5, max_value=50, value=20, key="top_k")
 
-            analyze_btn = st.form_submit_button("🔍 Analyze Features")
+                analyze_btn = st.form_submit_button("🔍 Analyze Features")
 
-        if analyze_btn:
-            st.info("To analyze features, first run feature discovery in the Discovery tab")
+            if analyze_btn:
+                with st.spinner("Analyzing features..."):
+                    try:
+                        import torch
+                        tracer = get_tracer(get_selected_model())
+                        sae = st.session_state.sae_model
+                        layer = st.session_state.sae_layer
+
+                        # Get activations for prompt
+                        result = tracer.trace(prompt)
+                        layer_key = f"layer_{layer}_resid"
+
+                        if result.activation_cache and layer_key in result.activation_cache:
+                            acts = result.activation_cache[layer_key]
+
+                            # Encode with SAE
+                            with torch.no_grad():
+                                features = sae.encode(acts)
+
+                            # Get top activating features
+                            max_features = features.max(dim=0).values
+                            top_indices = max_features.argsort(descending=True)[:top_k_features]
+
+                            st.markdown(f"### Top {top_k_features} Active Features for: \"{prompt}\"")
+
+                            for i, idx in enumerate(top_indices):
+                                idx = int(idx)
+                                activation = float(max_features[idx])
+                                if activation > 0:
+                                    st.markdown(f"**Feature {idx}**: activation = {activation:.3f}")
+                        else:
+                            st.error(f"Could not get activations for layer {layer}")
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
 
     # Tab 3: Feature Circuits
     with tab3:
@@ -1455,30 +1618,82 @@ def show_sae_features_page():
         This provides more interpretable circuits where each node is a monosemantic feature.
         """)
 
-        with st.form("feature_circuit_form"):
-            col1, col2 = st.columns(2)
+        # Check if SAE has been trained
+        if not st.session_state.get("sae_trained", False):
+            st.warning("⚠️ No SAE trained yet. Please run Feature Discovery first in the Discovery tab.")
+        else:
+            st.success(f"✅ SAE available for layer {st.session_state.sae_layer}")
 
-            with col1:
-                clean_input = st.text_input(
-                    "Clean input:",
-                    value="The Eiffel Tower is in Paris"
+            with st.form("feature_circuit_form"):
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    clean_input = st.text_input(
+                        "Clean input:",
+                        value="The Eiffel Tower is in Paris"
+                    )
+
+                with col2:
+                    corrupted_input = st.text_input(
+                        "Corrupted input:",
+                        value="The Eiffel Tower is in London"
+                    )
+
+                task_description = st.text_input(
+                    "Task description:",
+                    value="Geographic fact recall"
                 )
 
-            with col2:
-                corrupted_input = st.text_input(
-                    "Corrupted input:",
-                    value="The Eiffel Tower is in London"
-                )
+                discover_circuit_btn = st.form_submit_button("🔬 Discover Feature Circuit")
 
-            task_description = st.text_input(
-                "Task description:",
-                value="Geographic fact recall"
-            )
+            if discover_circuit_btn:
+                with st.spinner("Analyzing feature differences..."):
+                    try:
+                        import torch
+                        tracer = get_tracer(get_selected_model())
+                        sae = st.session_state.sae_model
+                        layer = st.session_state.sae_layer
 
-            discover_circuit_btn = st.form_submit_button("🔬 Discover Feature Circuit")
+                        # Get activations for both prompts
+                        clean_result = tracer.trace(clean_input)
+                        corrupted_result = tracer.trace(corrupted_input)
+                        layer_key = f"layer_{layer}_resid"
 
-        if discover_circuit_btn:
-            st.info("To discover feature circuits, first train SAEs on multiple layers in the Discovery tab")
+                        if (clean_result.activation_cache and layer_key in clean_result.activation_cache and
+                            corrupted_result.activation_cache and layer_key in corrupted_result.activation_cache):
+
+                            clean_acts = clean_result.activation_cache[layer_key]
+                            corrupted_acts = corrupted_result.activation_cache[layer_key]
+
+                            # Encode with SAE
+                            with torch.no_grad():
+                                clean_features = sae.encode(clean_acts)
+                                corrupted_features = sae.encode(corrupted_acts)
+
+                            # Find features that differ most
+                            clean_max = clean_features.max(dim=0).values
+                            corrupted_max = corrupted_features.max(dim=0).values
+                            diff = (clean_max - corrupted_max).abs()
+
+                            top_diff_indices = diff.argsort(descending=True)[:20]
+
+                            st.markdown(f"### Features Most Different Between Inputs")
+                            st.markdown(f"**Clean:** {clean_input}")
+                            st.markdown(f"**Corrupted:** {corrupted_input}")
+                            st.markdown("---")
+
+                            for idx in top_diff_indices:
+                                idx = int(idx)
+                                clean_val = float(clean_max[idx])
+                                corrupted_val = float(corrupted_max[idx])
+                                difference = float(diff[idx])
+                                if difference > 0.01:
+                                    direction = "↑" if clean_val > corrupted_val else "↓"
+                                    st.markdown(f"**Feature {idx}**: clean={clean_val:.3f}, corrupted={corrupted_val:.3f} ({direction} {difference:.3f})")
+                        else:
+                            st.error(f"Could not get activations for layer {layer}")
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
 
         st.markdown("""
         **Benefits of feature-level circuits:**

@@ -3,7 +3,7 @@
 **Mechanistic Interpretability Platform for Production AI Systems**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-62%20passing-brightgreen.svg)](https://github.com/isahan78/glassbox-engine/actions)
+[![Tests](https://img.shields.io/badge/tests-93%20passing-brightgreen.svg)](https://github.com/isahan78/glassbox-engine/actions)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Coverage](https://img.shields.io/badge/coverage-80%25+-yellow.svg)](https://github.com/isahan78/glassbox-engine)
 
@@ -305,7 +305,7 @@ glassbox-engine/
 │   └── server.py
 ├── dashboard/          # Streamlit UI
 │   └── app.py
-├── tests/              # Test suite (62 tests)
+├── tests/              # Test suite (93 tests)
 ├── docs/               # Documentation
 └── cloud/              # Deployment scripts
 ```

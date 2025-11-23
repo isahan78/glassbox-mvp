@@ -108,11 +108,11 @@ class SAECircuitDiscovery:
 
             # Get activations for this layer
             cache_key = f"layer_{layer}_resid"
-            if cache_key not in result.cache:
-                logger.warning(f"Layer {layer} not in cache")
+            if result.activation_cache is None or cache_key not in result.activation_cache:
+                logger.warning(f"Layer {layer} not in activation_cache")
                 continue
 
-            activations = result.cache[cache_key]  # [seq_len, d_model]
+            activations = result.activation_cache[cache_key]  # [seq_len, d_model]
 
             # Encode with SAE
             with torch.no_grad():
@@ -170,11 +170,11 @@ class SAECircuitDiscovery:
         corrupted_result = self.tracer.trace(corrupted_input)
 
         cache_key = f"layer_{layer}_resid"
-        if cache_key not in clean_result.cache:
+        if clean_result.activation_cache is None or cache_key not in clean_result.activation_cache:
             return 0.0
 
-        clean_act = clean_result.cache[cache_key]  # [seq_len, d_model]
-        corrupted_act = corrupted_result.cache[cache_key]
+        clean_act = clean_result.activation_cache[cache_key]  # [seq_len, d_model]
+        corrupted_act = corrupted_result.activation_cache[cache_key]
 
         # Encode with SAE
         with torch.no_grad():
